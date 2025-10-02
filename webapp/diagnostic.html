@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AuraFlow Diagnostic</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            max-width: 900px;
+            margin: 20px auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .section {
+            background: white;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        h1 { color: #6366f1; }
+        h2 { color: #333; margin-top: 0; }
+        .status { 
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 600;
+            margin-left: 10px;
+        }
+        .status-good { background: #10b981; color: white; }
+        .status-bad { background: #ef4444; color: white; }
+        .status-warning { background: #f59e0b; color: white; }
+        pre {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 4px;
+            overflow-x: auto;
+            font-size: 12px;
+        }
+        button {
+            background: #6366f1;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 6px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover { background: #4f46e5; }
+        .error { color: #ef4444; }
+        .success { color: #10b981; }
+    </style>
+</head>
+<body>
+    <h1>🔍 AuraFlow Diagnostic Tool</h1>
+    
+    <div class="section">
+        <h2>Environment Check</h2>
+        <div id="env-check">Running checks...</div>
+    </div>
+    
+    <div class="section">
+        <h2>Service Worker Status</h2>
+        <div id="sw-status">Checking...</div>
+        <button onclick="checkServiceWorker()">Refresh Status</button>
+        <button onclick="unregisterServiceWorker()">Unregister SW</button>
+    </div>
+    
+    <div class="section">
+        <h2>Cache Status</h2>
+        <div id="cache-status">Checking...</div>
+        <button onclick="checkCache()">Refresh Cache</button>
+        <button onclick="clearCache()">Clear All Cache</button>
+    </div>
+    
+    <div class="section">
+        <h2>File Access Test</h2>
+        <div id="file-test">Testing...</div>
+        <button onclick="testFiles()">Test Files</button>
+    </div>
+    
+    <div class="section">
+        <h2>Backend Connection</h2>
+        <div id="backend-test">Testing...</div>
+        <button onclick="testBackend()">Test Backend</button>
+    </div>
+    
+    <div class="section">
+        <h2>Console Errors</h2>
+        <div id="console-errors">
+            <p>Check browser console (F12) for detailed errors</p>
+            <button onclick="window.location.reload()">Reload Page</button>
+        </div>
+    </div>
+    
+    <script>
+        // Environment Check
+        function checkEnvironment() {
+            const results = [];
+            
+            // Check protocol
+            const protocol = window.location.protocol;
+            const isSecure = protocol === 'https:' || window.location.hostname === 'localhost';
+            results.push(`Protocol: ${protocol} ${isSecure ? '✅' : '❌ (Service Workers require HTTPS or localhost)'}`);
+            
+            // Check hostname
+            results.push(`Hostname: ${window.location.hostname}`);
+            results.push(`Port: ${window.location.port || '(default)'}`);
+            results.push(`Full URL: ${window.location.href}`);
+            
+            // Check Service Worker support
+            const swSupported = 'serviceWorker' in navigator;
+            results.push(`Service Worker Support: ${swSupported ? '✅' : '❌'}`);
+            
+            // Check Storage support
+            const storageSupported = 'localStorage' in window;
+            results.push(`LocalStorage Support: ${storageSupported ? '✅' : '❌'}`);
+            
+            // Check if in iframe
+            const inIframe = window.self !== window.top;
+            results.push(`In iframe: ${inIframe ? '⚠️ Yes (may cause issues)' : '✅ No'}`);
+            
+            document.getElementById('env-check').innerHTML = '<pre>' + results.join('\n') + '</pre>';
+        }
+        
+        // Service Worker Check
+        async function checkServiceWorker() {
+            const statusDiv = document.getElementById('sw-status');
+            
+            if (!('serviceWorker' in navigator)) {
+                statusDiv.innerHTML = '<span class="error">❌ Service Workers not supported</span>';
+                return;
+            }
+            
+            try {
+                const registrations = await navigator.serviceWorker.getRegistrations();
+                
+                if (registrations.length === 0) {
+                    statusDiv.innerHTML = '<span class="status-warning">No service workers registered</span>';
+                } else {
+                    let html = '<span class="status-good">Service Workers Found</span><br><br>';
+                    registrations.forEach((reg, i) => {
+                        html += `<strong>Registration ${i + 1}:</strong><br>`;
+                        html += `Scope: ${reg.scope}<br>`;
+                        html += `Active: ${reg.active ? '✅' : '❌'}<br>`;
+                        html += `Installing: ${reg.installing ? '⏳' : '❌'}<br>`;
+                        html += `Waiting: ${reg.waiting ? '⏳' : '❌'}<br><br>`;
+                    });
+                    statusDiv.innerHTML = html;
+                }
+            } catch (error) {
+                statusDiv.innerHTML = `<span class="error">Error: ${error.message}</span>`;
+            }
+        }
+        
+        // Unregister Service Worker
+        async function unregisterServiceWorker() {
+            try {
+                const registrations = await navigator.serviceWorker.getRegistrations();
+                for (const reg of registrations) {
+                    await reg.unregister();
+                }
+                alert('All service workers unregistered. Reload the page.');
+                checkServiceWorker();
+            } catch (error) {
+                alert('Error: ' + error.message);
+            }
+        }
+        
+        // Cache Check
+        async function checkCache() {
+            const statusDiv = document.getElementById('cache-status');
+            
+            if (!('caches' in window)) {
+                statusDiv.innerHTML = '<span class="error">❌ Cache API not supported</span>';
+                return;
+            }
+            
+            try {
+                const cacheNames = await caches.keys();
+                
+                if (cacheNames.length === 0) {
+                    statusDiv.innerHTML = '<span class="status-warning">No caches found</span>';
+                } else {
+                    let html = '<span class="status-good">Caches Found</span><br><br>';
+                    
+                    for (const name of cacheNames) {
+                        const cache = await caches.open(name);
+                        const keys = await cache.keys();
+                        html += `<strong>${name}</strong>: ${keys.length} items<br>`;
+                    }
+                    
+                    statusDiv.innerHTML = html;
+                }
+            } catch (error) {
+                statusDiv.innerHTML = `<span class="error">Error: ${error.message}</span>`;
+            }
+        }
+        
+        // Clear Cache
+        async function clearCache() {
+            try {
+                const cacheNames = await caches.keys();
+                for (const name of cacheNames) {
+                    await caches.delete(name);
+                }
+                alert('All caches cleared. Reload the page.');
+                checkCache();
+            } catch (error) {
+                alert('Error: ' + error.message);
+            }
+        }
+        
+        // Test Files
+        async function testFiles() {
+            const statusDiv = document.getElementById('file-test');
+            const files = [
+                '/index.html',
+                '/app.js',
+                '/core-logic.js',
+                '/web-platform-services.js',
+                '/service-worker.js',
+                '/style.css',
+                '/manifest.json'
+            ];
+            
+            let html = '<strong>Testing file access:</strong><br><br>';
+            
+            for (const file of files) {
+                try {
+                    const response = await fetch(file);
+                    const contentType = response.headers.get('content-type');
+                    const status = response.status;
+                    
+                    if (status === 200) {
+                        html += `✅ ${file} (${contentType})<br>`;
+                    } else {
+                        html += `❌ ${file} - Status: ${status}<br>`;
+                    }
+                } catch (error) {
+                    html += `❌ ${file} - Error: ${error.message}<br>`;
+                }
+            }
+            
+            statusDiv.innerHTML = html;
+        }
+        
+        // Test Backend
+        async function testBackend() {
+            const statusDiv = document.getElementById('backend-test');
+            const backendURL = 'http://localhost:3000/api';
+            
+            let html = '<strong>Testing backend connection:</strong><br><br>';
+            
+            // Test health endpoint
+            try {
+                const response = await fetch(`${backendURL}/health`);
+                const data = await response.json();
+                
+                if (response.ok) {
+                    html += `✅ Backend is running<br>`;
+                    html += `Service: ${data.service}<br>`;
+                    html += `Version: ${data.version}<br>`;
+                    html += `Status: ${data.status}<br>`;
+                } else {
+                    html += `⚠️ Backend responded with status: ${response.status}<br>`;
+                }
+            } catch (error) {
+                html += `❌ Cannot connect to backend<br>`;
+                html += `Error: ${error.message}<br>`;
+                html += `<br>Make sure the backend is running:<br>`;
+                html += `<code>cd battle-of-the-bots && npm start</code>`;
+            }
+            
+            statusDiv.innerHTML = html;
+        }
+        
+        // Run checks on load
+        window.addEventListener('load', () => {
+            checkEnvironment();
+            checkServiceWorker();
+            checkCache();
+            testFiles();
+            testBackend();
+        });
+        
+        // Capture console errors
+        window.addEventListener('error', (event) => {
+            const errorDiv = document.getElementById('console-errors');
+            const errorMsg = `<div class="error">❌ ${event.message} at ${event.filename}:${event.lineno}</div>`;
+            errorDiv.innerHTML += errorMsg;
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="AuraFlow - AI-powered focus timer with calendar integration">
+    <meta name="theme-color" content="#6366f1">
+    
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+    <link rel="manifest" href="manifest.json">
+    
+    <title>AuraFlow - Focus Timer</title>
+</head>
+<body>
+    <!-- Mobile Menu Toggle -->
+    <button id="mobile-menu-toggle" class="mobile-menu-toggle" aria-label="Toggle menu">
+        <span></span>
+        <span></span>
+        <span></span>
+    </button>
+
+    <div class="app-container">
+        <!-- Sidebar Navigation -->
+        <nav class="sidebar">
+            <div class="sidebar-header">
+                <div class="logo">
+                    <div class="logo-icon">A</div>
+                    <h1 class="logo-text">AuraFlow</h1>
+                </div>
+            </div>
+            
+            <div class="nav-menu">
+                <div class="nav-section">
+                    <h3 class="nav-title">Dashboard</h3>
+                    <a href="#" class="nav-item active" data-screen="events">
+                        <i class="nav-icon">📊</i>
+                        <span>Overview</span>
+                    </a>
+                    <a href="#" class="nav-item" data-screen="session">
+                        <i class="nav-icon">🎯</i>
+                        <span>Focus Session</span>
+                    </a>
+                </div>
+                
+                <div class="nav-section">
+                    <h3 class="nav-title">AI Features</h3>
+                    <button class="nav-item" id="nav-find-focus">
+                        <i class="nav-icon">🔍</i>
+                        <span>Find Focus Time</span>
+                    </button>
+                    <button class="nav-item" id="nav-generate-ritual">
+                        <i class="nav-icon">✨</i>
+                        <span>Generate Ritual</span>
+                    </button>
+                </div>
+                
+                <div class="nav-section">
+                    <h3 class="nav-title">Settings</h3>
+                    <button class="nav-item" id="nav-themes">
+                        <i class="nav-icon">🎨</i>
+                        <span>Themes</span>
+                    </button>
+                    <button class="nav-item" id="nav-blocking">
+                        <i class="nav-icon">🛡️</i>
+                        <span>Website Blocking</span>
+                    </button>
+                </div>
+            </div>
+            
+            <div class="sidebar-footer">
+                <button class="nav-item logout-btn" id="sidebar-logout-btn">
+                    <i class="nav-icon">🚪</i>
+                    <span>Logout</span>
+                </button>
+            </div>
+        </nav>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Authentication Screen -->
+            <div id="auth-screen" class="screen">
+                <div class="auth-container">
+                    <div class="auth-hero">
+                        <div class="hero-logo">A</div>
+                        <h1 class="hero-title">Welcome to AuraFlow</h1>
+                        <p class="hero-subtitle">AI-powered focus sessions with intelligent calendar integration</p>
+                    </div>
+                    
+                    <div class="auth-card">
+                        <h2>Get Started</h2>
+                        <p>Connect your Google Calendar to unlock personalized focus recommendations</p>
+                        <button id="connect-btn" class="btn btn-primary btn-large">
+                            <i class="btn-icon">🔗</i>
+                            Connect Google Calendar
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Events Screen -->
+            <div id="events-screen" class="screen hidden">
+                <!-- Header -->
+                <header class="page-header">
+                    <div class="header-content">
+                        <div class="header-text">
+                            <h1 class="page-title">Dashboard</h1>
+                            <p class="page-subtitle" id="date-header">Today's Overview</p>
+                        </div>
+                        <div class="header-actions">
+                            <button id="refresh-btn" class="btn btn-secondary btn-icon-only" title="Refresh">
+                                <i>↻</i>
+                            </button>
+                        </div>
+                    </div>
+                </header>
+
+                <!-- Dashboard Grid -->
+                <div class="dashboard-grid">
+                    <!-- Quick Focus Card -->
+                    <div class="card card-primary quick-focus-card">
+                        <div class="card-header">
+                            <h3 class="card-title">Quick Focus</h3>
+                            <div class="card-icon">🎯</div>
+                        </div>
+                        <div class="card-content">
+                            <p class="card-description">Start a 25-minute focus session right now</p>
+                            <button id="quick-focus-btn" class="btn btn-white btn-large">
+                                Start Session
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Calendar Events Card -->
+                    <div class="card events-card">
+                        <div class="card-header">
+                            <h3 class="card-title">Today's Schedule</h3>
+                            <div class="card-icon">📅</div>
+                        </div>
+                        <div class="card-content">
+                            <div id="events-container" class="events-list">
+                                <!-- Events populated by JS -->
+                            </div>
+                            <div id="no-events" class="empty-state hidden">
+                                <div class="empty-icon">📅</div>
+                                <p>No events scheduled today</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- AI Insights Card -->
+                    <div class="card ai-card">
+                        <div class="card-header">
+                            <h3 class="card-title">AI Insights</h3>
+                            <div class="card-icon">🤖</div>
+                        </div>
+                        <div class="card-content">
+                            <div class="ai-actions">
+                                <button id="find-focus-btn" class="btn btn-outline">
+                                    <i class="btn-icon">🔍</i>
+                                    Find Focus Time
+                                </button>
+                                <button id="generate-ritual-btn" class="btn btn-outline">
+                                    <i class="btn-icon">✨</i>
+                                    Generate Ritual
+                                </button>
+                            </div>
+                            <div id="ai-results" class="ai-results hidden">
+                                <!-- AI results populated by JS -->
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Theme Selector Card -->
+                    <div class="card theme-card">
+                        <div class="card-header">
+                            <h3 class="card-title">Theme</h3>
+                            <div class="card-icon">🎨</div>
+                        </div>
+                        <div class="card-content">
+                            <div class="theme-grid">
+                                <button id="theme-light-button" class="theme-option" data-theme="light" title="Light">
+                                    <div class="theme-preview theme-light"></div>
+                                    <span>Light</span>
+                                </button>
+                                <button id="theme-dark-button" class="theme-option" data-theme="dark" title="Dark">
+                                    <div class="theme-preview theme-dark"></div>
+                                    <span>Dark</span>
+                                </button>
+                                <button id="theme-calm-button" class="theme-option" data-theme="calm" title="Calm">
+                                    <div class="theme-preview theme-calm"></div>
+                                    <span>Calm</span>
+                                </button>
+                                <button id="theme-beach-button" class="theme-option" data-theme="beach" title="Beach">
+                                    <div class="theme-preview theme-beach"></div>
+                                    <span>Beach</span>
+                                </button>
+                                <button id="theme-rain-button" class="theme-option" data-theme="rain" title="Rain">
+                                    <div class="theme-preview theme-rain"></div>
+                                    <span>Rain</span>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Website Blocking Card -->
+                    <div class="card blocking-card">
+                        <div class="card-header">
+                            <h3 class="card-title">Distraction Shield</h3>
+                            <div class="card-icon">🛡️</div>
+                        </div>
+                        <div class="card-content">
+                            <p class="card-description">Block distracting websites during focus sessions</p>
+                            <div class="form-group">
+                                <label for="blocked-sites-list" class="form-label">Blocked Sites</label>
+                                <textarea 
+                                    id="blocked-sites-list" 
+                                    class="form-textarea"
+                                    placeholder="youtube.com&#10;twitter.com&#10;facebook.com"
+                                    rows="4"
+                                ></textarea>
+                            </div>
+                            <button id="save-blocked-sites-button" class="btn btn-primary">
+                                <i class="btn-icon">💾</i>
+                                Save Settings
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Stats Card -->
+                    <div class="card stats-card">
+                        <div class="card-header">
+                            <h3 class="card-title">Today's Progress</h3>
+                            <div class="card-icon">📈</div>
+                        </div>
+                        <div class="card-content">
+                            <div class="stats-grid">
+                                <div class="stat-item">
+                                    <div class="stat-value">0</div>
+                                    <div class="stat-label">Focus Sessions</div>
+                                </div>
+                                <div class="stat-item">
+                                    <div class="stat-value">0m</div>
+                                    <div class="stat-label">Total Focus</div>
+                                </div>
+                                <div class="stat-item">
+                                    <div class="stat-value">0</div>
+                                    <div class="stat-label">Completed Tasks</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Session Screen -->
+            <div id="session-screen" class="screen hidden">
+                <div class="session-container">
+                    <div class="session-header">
+                        <h1 class="session-title">Focus Session</h1>
+                        <button id="session-close" class="btn btn-ghost btn-icon-only">
+                            <i>✕</i>
+                        </button>
+                    </div>
+
+                    <div class="timer-section">
+                        <div class="timer-circle">
+                            <div class="timer-display" id="timer-display">25:00</div>
+                            <div class="timer-label">Focus Time</div>
+                        </div>
+                    </div>
+
+                    <div class="session-controls">
+                        <div class="control-group">
+                            <label class="control-label">Volume</label>
+                            <input type="range" id="volume-slider" class="slider" min="0" max="100" value="50">
+                        </div>
+
+                        <div class="control-group">
+                            <label class="control-label">Soundscape</label>
+                            <select id="soundscape-selector" class="form-select">
+                                <option value="rain">Rain</option>
+                                <option value="forest">Forest</option>
+                                <option value="cafe">Café</option>
+                                <option value="waves">Ocean Waves</option>
+                                <option value="white-noise">White Noise</option>
+                            </select>
+                        </div>
+
+                        <div class="session-actions">
+                            <button id="pause-btn" class="btn btn-secondary">
+                                <i class="btn-icon">⏸️</i>
+                                Pause
+                            </button>
+                            <button id="stop-btn" class="btn btn-danger">
+                                <i class="btn-icon">⏹️</i>
+                                Stop
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Loading Screen -->
+            <div id="loading-screen" class="screen hidden">
+                <div class="loading-container">
+                    <div class="spinner"></div>
+                    <p id="loading-message">Loading...</p>
+                </div>
+            </div>
+
+            <!-- Error Screen -->
+            <div id="error-screen" class="screen hidden">
+                <div class="error-container">
+                    <div class="error-icon">⚠️</div>
+                    <h2 class="error-title">Something went wrong</h2>
+                    <p id="error-message" class="error-message">Please try again</p>
+                    <button id="retry-btn" class="btn btn-primary">
+                        <i class="btn-icon">🔄</i>
+                        Try Again
+                    </button>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Background Elements -->
+    <div class="background-elements">
+        <div class="bg-shape bg-shape-1"></div>
+        <div class="bg-shape bg-shape-2"></div>
+        <div class="bg-shape bg-shape-3"></div>
+    </div>
+
+    <script type="module" src="app.js"></script>
+</body>
+</html>
