@@ -10,6 +10,36 @@ let mouseActivityTimer;
 const MOUSE_INACTIVE_DELAY = 3000; // 3 seconds
 let currentTheme = 'light'; // Default theme
 let lastSessionSettings = null;
+let focusAudio = null;
+let currentSoundscape = 'rain';
+const DEFAULT_VOLUME = 0.5;
+const SOUNDSCAPE_AUDIO_MAP = {
+    'rain': {
+        path: 'mp3/rain.mp3',
+        label: 'Rain Ambience',
+        aliases: ['rain', 'rain ambience', 'rain sounds']
+    },
+    'ritual-templates': {
+        path: 'mp3/1__Ritual_Templates_Library.mp3',
+        label: 'Ritual Templates Library',
+        aliases: ['ritual templates', 'ritual templates library', 'rituals']
+    },
+    'affirmations-breaks': {
+        path: 'mp3/2__Affirmation_Mindfulness_Breaks.mp3',
+        label: 'Affirmations & Mindfulness Breaks',
+        aliases: ['affirmations', 'mindfulness breaks', 'affirmation mindfulness breaks', 'affirmations & mindfulness breaks']
+    },
+    'ambient-orchestral': {
+        path: 'mp3/3__Ambient Music_Cinematic_Orchestral.mp3',
+        label: 'Ambient Cinematic & Orchestral',
+        aliases: ['ambient orchestral', 'cinematic orchestral', 'ambient music', 'ambient cinematic & orchestral']
+    },
+    'positive-affirmation': {
+        path: 'mp3/4__Positive_Affirmation.mp3',
+        label: 'Positive Affirmation Meditation',
+        aliases: ['positive affirmation', 'affirmation meditation', 'positive meditation', 'positive affirmation meditation']
+    }
+};
 
 document.addEventListener('DOMContentLoaded', function () {
     console.log('AuraFlow Calendar popup loaded');
@@ -184,6 +214,10 @@ function showScreen(screenName) {
     // Update current screen state
     currentScreen = screenName;
     isLoading = screenName === 'loading';
+
+    if (screenName !== 'session') {
+        stopFocusAudio();
+    }
 
     // Hide all screens
     const screens = document.querySelectorAll('.screen');
@@ -1155,7 +1189,11 @@ function displayRitualResult(ritual) {
         'waves': '🌊',
         'ocean': '🌊',
         'white-noise': '🔊',
-        'nature': '🍃'
+        'nature': '🍃',
+        'ritual-templates': '📘',
+        'affirmations-breaks': '🧘',
+        'ambient-orchestral': '🎼',
+        'positive-affirmation': '🌅'
     };
     
     const soundscapeIcon = soundscapeIcons[ritual.suggestedSoundscape?.toLowerCase()] || '🎵';
@@ -1263,10 +1301,22 @@ function setupSessionEventListeners() {
             pauseBtn.addEventListener('click', handlePauseSession);
             pauseBtn.addEventListener('keydown', (e) => handleButtonKeydown(e, handlePauseSession));
         }
-        
+
         if (stopBtn) {
             stopBtn.addEventListener('click', handleStopSession);
             stopBtn.addEventListener('keydown', (e) => handleButtonKeydown(e, handleStopSession));
+        }
+
+        const volumeSlider = document.getElementById('volume-slider');
+        if (volumeSlider) {
+            volumeSlider.addEventListener('input', handleVolumeChange);
+            volumeSlider.addEventListener('change', handleVolumeChange);
+        }
+
+        const soundscapeSelector = document.getElementById('soundscape-selector');
+        if (soundscapeSelector) {
+            populateSoundscapeOptions(soundscapeSelector);
+            soundscapeSelector.addEventListener('change', handleSoundscapeChange);
         }
     }
 }
@@ -1315,8 +1365,162 @@ function handlePauseSession() {
 // Handle stop session button click
 function handleStopSession() {
     console.log('Stop session clicked');
+    stopFocusAudio();
     // Return to events screen
     showScreen('events');
+}
+
+function handleVolumeChange(event) {
+    const rawValue = Number(event.target.value);
+    const normalizedVolume = Number.isNaN(rawValue) ? DEFAULT_VOLUME : Math.min(1, Math.max(0, rawValue / 100));
+    setFocusAudioVolume(normalizedVolume);
+}
+
+function handleSoundscapeChange(event) {
+    const selectedSoundscape = event.target.value || 'rain';
+    playFocusAudio(selectedSoundscape);
+}
+
+function populateSoundscapeOptions(soundscapeSelector) {
+    const selector = soundscapeSelector || document.getElementById('soundscape-selector');
+    if (!selector) {
+        return;
+    }
+
+    selector.innerHTML = '';
+
+    const fragment = document.createDocumentFragment();
+    Object.entries(SOUNDSCAPE_AUDIO_MAP).forEach(([key, meta]) => {
+        const option = document.createElement('option');
+        option.value = key;
+        option.textContent = meta.label || key;
+        fragment.appendChild(option);
+    });
+
+    selector.appendChild(fragment);
+
+    const resolvedDefault = resolveSoundscapeKey(currentSoundscape);
+    currentSoundscape = resolvedDefault;
+    selector.value = resolvedDefault;
+}
+
+function resolveSoundscapeKey(soundscape) {
+    const normalizedInput = (soundscape || '').toString().toLowerCase().trim();
+    if (!normalizedInput) {
+        return 'rain';
+    }
+
+    if (SOUNDSCAPE_AUDIO_MAP[normalizedInput]) {
+        return normalizedInput;
+    }
+
+    const hyphenatedInput = normalizedInput.replace(/[\s_]+/g, '-');
+    if (SOUNDSCAPE_AUDIO_MAP[hyphenatedInput]) {
+        return hyphenatedInput;
+    }
+
+    for (const [key, meta] of Object.entries(SOUNDSCAPE_AUDIO_MAP)) {
+        if (!meta.aliases) {
+            continue;
+        }
+
+        const match = meta.aliases.some(alias => {
+            const aliasNormalized = alias.toLowerCase().trim();
+            if (aliasNormalized === normalizedInput) {
+                return true;
+            }
+
+            const aliasHyphenated = aliasNormalized.replace(/[\s_]+/g, '-');
+            return aliasHyphenated === hyphenatedInput;
+        });
+        if (match) {
+            return key;
+        }
+    }
+
+    if (normalizedInput && normalizedInput !== 'rain') {
+        console.warn(`Soundscape '${normalizedInput}' not available. Defaulting to rain.`);
+    }
+
+    return 'rain';
+}
+
+function getVolumeFromSlider() {
+    const volumeSlider = document.getElementById('volume-slider');
+    if (!volumeSlider) {
+        return DEFAULT_VOLUME;
+    }
+
+    const rawValue = Number(volumeSlider.value);
+    if (Number.isNaN(rawValue)) {
+        return DEFAULT_VOLUME;
+    }
+
+    return Math.min(1, Math.max(0, rawValue / 100));
+}
+
+function setFocusAudioVolume(volume) {
+    if (!focusAudio) {
+        return;
+    }
+
+    const clampedVolume = Math.min(1, Math.max(0, volume));
+    focusAudio.volume = clampedVolume;
+}
+
+function playFocusAudio(soundscape = 'rain') {
+    const resolvedSoundscape = resolveSoundscapeKey(soundscape);
+    const soundscapeMeta = SOUNDSCAPE_AUDIO_MAP[resolvedSoundscape];
+    const audioPath = soundscapeMeta?.path;
+    if (!audioPath) {
+        console.error(`No audio configured for soundscape '${resolvedSoundscape}'.`);
+        return;
+    }
+    const audioUrl = chrome.runtime.getURL(audioPath);
+
+    if (!focusAudio) {
+        focusAudio = new Audio(audioUrl);
+        focusAudio.loop = true;
+    }
+
+    const audioChanged = focusAudio.src !== audioUrl;
+    if (audioChanged) {
+        focusAudio.pause();
+        focusAudio.src = audioUrl;
+    }
+
+    currentSoundscape = resolvedSoundscape;
+
+    const currentVolume = getVolumeFromSlider();
+    setFocusAudioVolume(currentVolume);
+
+    try {
+        if (audioChanged) {
+            focusAudio.currentTime = 0;
+        }
+        const playPromise = focusAudio.play();
+        if (playPromise && typeof playPromise.catch === 'function') {
+            playPromise.catch(error => {
+                console.error('Failed to play focus audio:', error);
+            });
+        }
+    } catch (error) {
+        console.error('Failed to play focus audio:', error);
+    }
+
+    const soundscapeSelector = document.getElementById('soundscape-selector');
+    if (soundscapeSelector && soundscapeSelector.value !== resolvedSoundscape) {
+        soundscapeSelector.value = resolvedSoundscape;
+    }
+}
+
+function stopFocusAudio() {
+    if (!focusAudio) {
+        return;
+    }
+
+    focusAudio.pause();
+    focusAudio.currentTime = 0;
 }
 
 // ============================================================================
@@ -1488,12 +1692,14 @@ function startFocusSession(settings) {
             const minutes = settings.ritual.workDuration;
             timerDisplay.textContent = `${minutes}:00`;
         }
-        
-        // Set soundscape if available
-        const soundscapeSelector = document.getElementById('soundscape-selector');
-        if (soundscapeSelector && settings.soundscape) {
-            soundscapeSelector.value = settings.soundscape;
-        }
+    }
+
+    // Set soundscape if available
+    const soundscapeSelector = document.getElementById('soundscape-selector');
+    const resolvedSoundscape = resolveSoundscapeKey(settings.soundscape || currentSoundscape);
+    currentSoundscape = resolvedSoundscape;
+    if (soundscapeSelector) {
+        soundscapeSelector.value = resolvedSoundscape;
     }
     
     // Show the session screen
@@ -1540,6 +1746,7 @@ async function startFocusSession(workDuration, breakDuration, taskGoal) {
       // Update UI to show active session
       showSessionStartedUI(workDuration, breakDuration, taskGoal);
       announceToScreenReader(`Focus session started: ${workDuration} minutes of work, ${breakDuration} minutes of break`);
+      playFocusAudio(currentSoundscape);
     } else {
       throw new Error(response.error || 'Failed to start session');
     }
@@ -1576,6 +1783,7 @@ async function endFocusSession() {
       
       // Update UI to show session ended
       showSessionEndedUI();
+      stopFocusAudio();
       announceToScreenReader('Focus session ended');
     } else {
       throw new Error(response.error || 'Failed to end session');
@@ -1754,22 +1962,23 @@ function hideAIResults() {
  */
 function startFocusSession(duration) {
     console.log(`Starting focus session for ${duration} minutes`);
-    
+
     // Store session settings
     chrome.storage.local.set({
         sessionDuration: duration,
         sessionType: 'focus'
     });
-    
+
     // Switch to session screen
     showSessionScreen();
-    
+
     // Start the timer
     startTimer(duration);
-    
+
     // Hide AI results
     hideAIResults();
-    
+
+    playFocusAudio(currentSoundscape);
     announceToScreenReader(`Starting ${duration} minute focus session`);
 }
 
@@ -1782,7 +1991,7 @@ function startFocusSession(duration) {
  */
 function useRitual(name, workDuration, breakDuration, soundscape) {
     console.log(`Using ritual: ${name}`);
-    
+
     // Store ritual settings
     chrome.storage.local.set({
         ritualName: name,
@@ -1793,20 +2002,23 @@ function useRitual(name, workDuration, breakDuration, soundscape) {
     });
     
     // Set the soundscape selector if available
+    const resolvedSoundscape = resolveSoundscapeKey(soundscape);
+
     const soundscapeSelector = document.getElementById('soundscape-selector');
     if (soundscapeSelector) {
-        soundscapeSelector.value = soundscape;
+        soundscapeSelector.value = resolvedSoundscape;
     }
-    
+
     // Switch to session screen
     showSessionScreen();
-    
+
     // Start the timer
     startTimer(workDuration);
-    
+
     // Hide AI results
     hideAIResults();
-    
+
+    playFocusAudio(resolvedSoundscape);
     announceToScreenReader(`Starting ${name} ritual with ${workDuration} minute work session`);
 }
 
