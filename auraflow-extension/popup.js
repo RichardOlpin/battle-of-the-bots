@@ -1343,6 +1343,8 @@ function setupThemeButtons() {
     const lightBtn = document.getElementById('theme-light-button');
     const darkBtn = document.getElementById('theme-dark-button');
     const calmBtn = document.getElementById('theme-calm-button');
+    const beachBtn = document.getElementById('theme-beach-button');
+    const rainBtn = document.getElementById('theme-rain-button');
     
     if (lightBtn) {
         lightBtn.addEventListener('click', () => switchTheme('light'));
@@ -1357,6 +1359,16 @@ function setupThemeButtons() {
     if (calmBtn) {
         calmBtn.addEventListener('click', () => switchTheme('calm'));
         calmBtn.addEventListener('keydown', (e) => handleButtonKeydown(e, () => switchTheme('calm')));
+    }
+    
+    if (beachBtn) {
+        beachBtn.addEventListener('click', () => switchTheme('beach'));
+        beachBtn.addEventListener('keydown', (e) => handleButtonKeydown(e, () => switchTheme('beach')));
+    }
+    
+    if (rainBtn) {
+        rainBtn.addEventListener('click', () => switchTheme('rain'));
+        rainBtn.addEventListener('keydown', (e) => handleButtonKeydown(e, () => switchTheme('rain')));
     }
 }
 
