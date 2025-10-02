@@ -930,6 +930,18 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
                     sendResponse({ success: true, data: { message: 'Logged out successfully' } });
                     break;
 
+                case 'startFocus':
+                    console.log('Starting focus mode - enabling website blocking');
+                    await updateBlockingRules(true);
+                    sendResponse({ success: true, data: { message: 'Blocking enabled' } });
+                    break;
+
+                case 'endFocus':
+                    console.log('Ending focus mode - disabling website blocking');
+                    await updateBlockingRules(false);
+                    sendResponse({ success: true, data: { message: 'Blocking disabled' } });
+                    break;
+
                 default:
                     console.warn('Unknown message action:', message.action);
                     sendResponse({ success: false, error: 'Unknown action' });
@@ -1124,8 +1136,7 @@ if (typeof module !== 'undefined' && module.exports) {
     };
 }
 
-/
-/ ============================================================================
+// ============================================================================
 // WEBSITE BLOCKING (DISTRACTION SHIELD)
 // ============================================================================
 
@@ -1193,32 +1204,5 @@ async function updateBlockingRules(enableBlocking = false) {
 
 /**
  * Handles focus session start/end messages for blocking control
+ * This is integrated into the main message listener above
  */
-chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-  // Handle blocking control messages
-  if (message.action === 'startFocus') {
-    console.log('Starting focus mode - enabling website blocking');
-    updateBlockingRules(true)
-      .then(() => {
-        sendResponse({ success: true, message: 'Blocking enabled' });
-      })
-      .catch(error => {
-        console.error('Failed to enable blocking:', error);
-        sendResponse({ success: false, error: error.message });
-      });
-    return true; // Keep channel open for async response
-  }
-  
-  if (message.action === 'endFocus') {
-    console.log('Ending focus mode - disabling website blocking');
-    updateBlockingRules(false)
-      .then(() => {
-        sendResponse({ success: true, message: 'Blocking disabled' });
-      })
-      .catch(error => {
-        console.error('Failed to disable blocking:', error);
-        sendResponse({ success: false, error: error.message });
-      });
-    return true; // Keep channel open for async response
-  }
-});

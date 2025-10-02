@@ -37,5 +37,8 @@
         "scopes": [
             "https://www.googleapis.com/auth/calendar.readonly"
         ]
+    },
+    "content_security_policy": {
+        "extension_pages": "script-src 'self'; object-src 'self'"
     }
 }

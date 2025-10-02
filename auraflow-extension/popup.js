@@ -1,6 +1,10 @@
 // Popup script for AuraFlow Calendar Extension
 // This file handles the popup UI logic and user interactions
 
+// Import core logic and platform services
+import * as CoreLogic from './core-logic.js';
+import * as Platform from './chrome-platform-services.js';
+
 // Global state management
 let currentScreen = 'auth';
 let isLoading = false;
@@ -640,17 +644,9 @@ function displaySampleEvents() {
     }
 }
 
-// Communication with service worker
+// Communication with service worker (using platform abstraction)
 function sendMessageToServiceWorker(message) {
-    return new Promise((resolve, reject) => {
-        chrome.runtime.sendMessage(message, (response) => {
-            if (chrome.runtime.lastError) {
-                reject(new Error(chrome.runtime.lastError.message));
-            } else {
-                resolve(response);
-            }
-        });
-    });
+    return Platform.sendMessageToServiceWorker(message);
 }
 
 // Check authentication status and show appropriate screen
@@ -728,347 +724,311 @@ function setupMessageListener() {
 // AI FEATURES INTEGRATION
 // ============================================================================
 
-// Backend API configuration
-const BACKEND_API_URL = 'http://localhost:3000';
-
 // Store current events for AI features
 let currentEvents = [];
 
 /**
  * Handle Find Focus Time button click
- * Fetches calendar events and calls backend scheduling API
+ * Analyzes calendar events to suggest optimal focus windows
  */
 async function handleFindFocusTime() {
     console.log('Find Focus Time clicked');
-    window.lastAIAction = 'focus'; // Track for retry functionality
+    window.lastAIAction = 'focus';
     
     try {
-        // Show loading state
-        showAILoading('Finding optimal focus time...');
+        showAILoading('Analyzing your calendar...');
         
-        // Get current calendar events with timeout
-        const response = await Promise.race([
-            sendMessageToServiceWorker({ action: 'fetchEvents' }),
-            new Promise((_, reject) => setTimeout(() => reject(new Error('Request timeout')), 10000))
-        ]);
-        
+        // Get calendar events
+        const response = await sendMessageToServiceWorker({ action: 'fetchEvents' });
         if (!response || !response.success) {
             throw new Error(response?.error || 'Failed to fetch calendar events');
         }
         
         const events = Array.isArray(response.data) ? response.data : [];
-        currentEvents = events;
         
-        // Transform and validate events
-        const calendarEvents = events
-            .filter(event => event && event.start && event.end)
-            .map(event => {
-                try {
-                    return {
-                        id: event.id || `event-${Date.now()}`,
-                        startTime: event.start.dateTime || event.start.date,
-                        endTime: event.end.dateTime || event.end.date,
-                        title: (event.summary || 'Untitled Event').substring(0, 200) // Limit title length
-                    };
-                } catch (err) {
-                    console.warn('Skipping invalid event:', err);
-                    return null;
-                }
-            })
-            .filter(event => event !== null);
-        
-        // Determine time of day for preferences
-        const now = new Date();
-        const hour = now.getHours();
-        let preferredTime = 'afternoon';
-        if (hour >= 6 && hour < 12) {
-            preferredTime = 'morning';
-        } else if (hour >= 17 && hour < 21) {
-            preferredTime = 'evening';
-        }
-        
-        // Call backend scheduling API with timeout
-        const focusWindow = await Promise.race([
-            callSchedulingAPI(calendarEvents, {
-                preferredTime: preferredTime,
-                minimumDuration: 75,
-                bufferTime: 15
-            }),
-            new Promise((_, reject) => setTimeout(() => reject(new Error('Backend timeout')), 15000))
-        ]);
-        
-        // Validate response
-        if (focusWindow && typeof focusWindow === 'object') {
-            displayFocusTimeResult(focusWindow);
-        } else {
-            displayFocusTimeResult(null);
-        }
+        // Analyze events and find optimal focus time
+        const focusWindow = analyzeCalendarForFocus(events);
+        displayFocusTimeResult(focusWindow);
         
     } catch (error) {
         console.error('Find Focus Time error:', error);
-        let errorMessage = 'Failed to find focus time';
-        
-        if (error.message.includes('timeout')) {
-            errorMessage = 'Request timed out. Please check your connection and try again.';
-        } else if (error.message.includes('fetch')) {
-            errorMessage = 'Network error. Please ensure the backend server is running.';
-        } else if (error.message) {
-            errorMessage = `Failed to find focus time: ${error.message}`;
-        }
-        
-        showAIError(errorMessage);
+        showAIError('Failed to analyze calendar. Please try again.');
     }
 }
 
 /**
  * Handle Generate Ritual button click
- * Analyzes calendar and calls backend ritual generation API
+ * Creates personalized work rituals based on calendar context
  */
 async function handleGenerateRitual() {
     console.log('Generate Ritual clicked');
-    window.lastAIAction = 'ritual'; // Track for retry functionality
+    window.lastAIAction = 'ritual';
     
     try {
-        // Show loading state
-        showAILoading('Generating personalized ritual...');
+        showAILoading('Creating your personalized ritual...');
         
-        // Get current calendar events if not already loaded
-        if (!Array.isArray(currentEvents) || currentEvents.length === 0) {
-            try {
-                const response = await Promise.race([
-                    sendMessageToServiceWorker({ action: 'fetchEvents' }),
-                    new Promise((_, reject) => setTimeout(() => reject(new Error('Fetch timeout')), 10000))
-                ]);
-                
-                if (response && response.success && Array.isArray(response.data)) {
-                    currentEvents = response.data;
-                } else {
-                    currentEvents = [];
-                }
-            } catch (err) {
-                console.warn('Could not fetch events, using empty array:', err);
-                currentEvents = [];
-            }
-        }
+        // Get calendar events for context
+        const response = await sendMessageToServiceWorker({ action: 'fetchEvents' });
+        const events = response?.success ? response.data : [];
         
-        // Determine context from calendar
-        const now = new Date();
-        const hour = now.getHours();
-        
-        let timeOfDay = 'afternoon';
-        if (hour >= 6 && hour < 12) {
-            timeOfDay = 'morning';
-        } else if (hour >= 17 && hour < 21) {
-            timeOfDay = 'evening';
-        }
-        
-        // Calculate calendar density safely
-        const eventsToday = Array.isArray(currentEvents) ? currentEvents.length : 0;
-        let calendarDensity = 'clear';
-        if (eventsToday >= 5) {
-            calendarDensity = 'busy';
-        } else if (eventsToday >= 3) {
-            calendarDensity = 'moderate';
-        }
-        
-        // Get next event title for context
-        let calendarEventTitle = 'Focus session';
-        if (Array.isArray(currentEvents) && currentEvents.length > 0) {
-            try {
-                const nextEvent = currentEvents.find(event => {
-                    if (!event || !event.start) return false;
-                    try {
-                        const eventTime = new Date(event.start.dateTime || event.start.date);
-                        return !isNaN(eventTime.getTime()) && eventTime > now;
-                    } catch (err) {
-                        return false;
-                    }
-                });
-                
-                if (nextEvent && nextEvent.summary) {
-                    // Sanitize and limit title length
-                    calendarEventTitle = String(nextEvent.summary).substring(0, 200);
-                }
-            } catch (err) {
-                console.warn('Error finding next event:', err);
-            }
-        }
-        
-        // Call backend ritual generation API with timeout
-        const ritual = await Promise.race([
-            callRitualAPI({
-                calendarEventTitle: calendarEventTitle,
-                timeOfDay: timeOfDay,
-                calendarDensity: calendarDensity
-            }),
-            new Promise((_, reject) => setTimeout(() => reject(new Error('Backend timeout')), 15000))
-        ]);
-        
-        // Validate ritual response
-        if (ritual && typeof ritual === 'object' && ritual.name) {
-            displayRitualResult(ritual);
-            
-            // Save ritual for Quick Start
-            saveSessionSettings({
-                ritual: ritual,
-                soundscape: ritual.suggestedSoundscape || 'rain',
-                timestamp: Date.now()
-            });
-            
-            // Update Quick Start button
-            updateQuickStartButton();
-        } else {
-            throw new Error('Invalid ritual response from server');
-        }
+        // Generate ritual based on current context
+        const ritual = generatePersonalizedRitual(events);
+        displayRitualResult(ritual);
         
     } catch (error) {
         console.error('Generate Ritual error:', error);
-        let errorMessage = 'Failed to generate ritual';
-        
-        if (error.message.includes('timeout')) {
-            errorMessage = 'Request timed out. Please check your connection and try again.';
-        } else if (error.message.includes('fetch')) {
-            errorMessage = 'Network error. Please ensure the backend server is running.';
-        } else if (error.message) {
-            errorMessage = `Failed to generate ritual: ${error.message}`;
-        }
-        
-        showAIError(errorMessage);
+        showAIError('Failed to generate ritual. Please try again.');
     }
 }
 
 /**
- * Call backend scheduling API
- * @param {Array} calendarEvents - Array of calendar events
- * @param {Object} userPreferences - User preferences for scheduling
- * @returns {Promise<Object>} Focus window suggestion
+ * Analyze calendar events to find optimal focus windows
+ * @param {Array} events - Calendar events
+ * @returns {Object|null} Focus window suggestion
  */
-async function callSchedulingAPI(calendarEvents, userPreferences) {
-    // Validate inputs
-    if (!Array.isArray(calendarEvents)) {
-        throw new Error('Invalid calendar events data');
+function analyzeCalendarForFocus(events) {
+    const now = new Date();
+    const endOfDay = new Date(now);
+    endOfDay.setHours(18, 0, 0, 0); // End analysis at 6 PM
+    
+    // If no events or empty calendar, suggest immediate focus time
+    if (!events || events.length === 0) {
+        const duration = 90; // Default 90-minute session
+        const endTime = new Date(now.getTime() + duration * 60 * 1000);
+        
+        return {
+            startTime: now.toISOString(),
+            endTime: endTime.toISOString(),
+            duration: duration,
+            score: 100,
+            reasoning: "Perfect! Your calendar is completely free. This is an ideal time for deep, uninterrupted focus work."
+        };
     }
     
-    if (!userPreferences || typeof userPreferences !== 'object') {
-        throw new Error('Invalid user preferences');
+    // Parse and sort events
+    const todayEvents = events
+        .filter(event => event && event.start)
+        .map(event => ({
+            start: new Date(event.start.dateTime || event.start.date),
+            end: new Date(event.end.dateTime || event.end.date),
+            title: event.summary || 'Event'
+        }))
+        .filter(event => event.start >= now && event.start <= endOfDay)
+        .sort((a, b) => a.start - b.start);
+    
+    // If no events today, suggest immediate focus time
+    if (todayEvents.length === 0) {
+        const duration = 90;
+        const endTime = new Date(now.getTime() + duration * 60 * 1000);
+        
+        return {
+            startTime: now.toISOString(),
+            endTime: endTime.toISOString(),
+            duration: duration,
+            score: 95,
+            reasoning: "Excellent! No events scheduled for today. You have complete freedom to focus on your most important work."
+        };
     }
     
-    try {
-        const response = await fetch(`${BACKEND_API_URL}/api/schedule/suggest`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Accept': 'application/json'
-            },
-            body: JSON.stringify({
-                calendarEvents: calendarEvents,
-                userPreferences: userPreferences
-            }),
-            signal: AbortSignal.timeout(15000) // 15 second timeout
+    // Find gaps between events
+    const gaps = [];
+    let currentTime = new Date(Math.max(now.getTime(), now.getTime()));
+    
+    // Check if there's time before the first event
+    if (todayEvents[0].start - currentTime >= 45 * 60 * 1000) {
+        gaps.push({
+            start: new Date(currentTime),
+            end: new Date(todayEvents[0].start),
+            duration: Math.floor((todayEvents[0].start - currentTime) / (60 * 1000))
         });
-        
-        if (!response.ok) {
-            let errorMessage = 'Scheduling API request failed';
-            try {
-                const errorData = await response.json();
-                errorMessage = errorData.error?.message || errorMessage;
-            } catch (parseError) {
-                errorMessage = `Server error: ${response.status} ${response.statusText}`;
-            }
-            throw new Error(errorMessage);
-        }
-        
-        const data = await response.json();
-        
-        // Validate response structure
-        if (data === null) {
-            return null; // No focus window found
-        }
-        
-        if (typeof data !== 'object') {
-            throw new Error('Invalid response format from server');
-        }
-        
-        return data;
-        
-    } catch (error) {
-        console.error('Scheduling API error:', error);
-        
-        if (error.name === 'AbortError') {
-            throw new Error('Request timeout - server took too long to respond');
-        }
-        
-        if (error.message.includes('Failed to fetch')) {
-            throw new Error('Network error - cannot reach backend server');
-        }
-        
-        throw error;
     }
+    
+    // Check gaps between events
+    for (let i = 0; i < todayEvents.length - 1; i++) {
+        const currentEvent = todayEvents[i];
+        const nextEvent = todayEvents[i + 1];
+        
+        if (nextEvent.start - currentEvent.end >= 45 * 60 * 1000) {
+            gaps.push({
+                start: new Date(currentEvent.end),
+                end: new Date(nextEvent.start),
+                duration: Math.floor((nextEvent.start - currentEvent.end) / (60 * 1000))
+            });
+        }
+    }
+    
+    // Check if there's time after the last event
+    const lastEvent = todayEvents[todayEvents.length - 1];
+    if (endOfDay - lastEvent.end >= 45 * 60 * 1000) {
+        gaps.push({
+            start: new Date(lastEvent.end),
+            end: new Date(endOfDay),
+            duration: Math.floor((endOfDay - lastEvent.end) / (60 * 1000))
+        });
+    }
+    
+    if (gaps.length === 0) {
+        return null; // No suitable gaps found
+    }
+    
+    // Score gaps based on duration and time of day
+    const scoredGaps = gaps.map(gap => {
+        let score = Math.min(gap.duration, 120); // Base score from duration (max 120)
+        
+        // Time of day bonus
+        const hour = gap.start.getHours();
+        if (hour >= 9 && hour <= 11) score += 20; // Morning focus bonus
+        if (hour >= 14 && hour <= 16) score += 15; // Afternoon focus bonus
+        if (hour >= 8 && hour <= 17) score += 10; // Work hours bonus
+        
+        // Duration bonus for longer sessions
+        if (gap.duration >= 90) score += 15;
+        if (gap.duration >= 120) score += 10;
+        
+        return { ...gap, score };
+    });
+    
+    // Return best gap
+    const bestGap = scoredGaps.reduce((best, current) => 
+        current.score > best.score ? current : best
+    );
+    
+    // Suggest 75-90 minute session within the gap
+    const suggestedDuration = Math.min(90, Math.max(75, bestGap.duration - 15));
+    const endTime = new Date(bestGap.start.getTime() + suggestedDuration * 60 * 1000);
+    
+    return {
+        startTime: bestGap.start.toISOString(),
+        endTime: endTime.toISOString(),
+        duration: suggestedDuration,
+        score: Math.min(100, bestGap.score),
+        reasoning: generateFocusReasoning(bestGap, todayEvents.length)
+    };
 }
 
 /**
- * Call backend ritual generation API
- * @param {Object} context - Context for ritual generation
- * @returns {Promise<Object>} Generated ritual
+ * Generate reasoning text for focus time suggestion
  */
-async function callRitualAPI(context) {
-    // Validate input
-    if (!context || typeof context !== 'object') {
-        throw new Error('Invalid context data');
+function generateFocusReasoning(gap, eventCount) {
+    const hour = gap.start.getHours();
+    const timeOfDay = hour < 12 ? 'morning' : hour < 17 ? 'afternoon' : 'evening';
+    
+    let reasoning = `This ${gap.duration}-minute window in the ${timeOfDay} provides `;
+    
+    if (gap.duration >= 120) {
+        reasoning += 'excellent space for deep work with minimal interruptions.';
+    } else if (gap.duration >= 90) {
+        reasoning += 'good opportunity for focused work before your next commitment.';
+    } else {
+        reasoning += 'a solid block for concentrated effort.';
     }
     
-    try {
-        const response = await fetch(`${BACKEND_API_URL}/api/ritual/generate`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Accept': 'application/json'
-            },
-            body: JSON.stringify({ context: context }),
-            signal: AbortSignal.timeout(15000) // 15 second timeout
-        });
-        
-        if (!response.ok) {
-            let errorMessage = 'Ritual API request failed';
-            try {
-                const errorData = await response.json();
-                errorMessage = errorData.error?.message || errorMessage;
-            } catch (parseError) {
-                errorMessage = `Server error: ${response.status} ${response.statusText}`;
-            }
-            throw new Error(errorMessage);
-        }
-        
-        const data = await response.json();
-        
-        // Validate response structure
-        if (!data || typeof data !== 'object') {
-            throw new Error('Invalid response format from server');
-        }
-        
-        // Validate required ritual properties
-        const requiredProps = ['name', 'workDuration', 'breakDuration', 'mindfulnessBreaks', 'description'];
-        for (const prop of requiredProps) {
-            if (!(prop in data)) {
-                throw new Error(`Missing required property: ${prop}`);
-            }
-        }
-        
-        return data;
-        
-    } catch (error) {
-        console.error('Ritual API error:', error);
-        
-        if (error.name === 'AbortError') {
-            throw new Error('Request timeout - server took too long to respond');
-        }
-        
-        if (error.message.includes('Failed to fetch')) {
-            throw new Error('Network error - cannot reach backend server');
-        }
-        
-        throw error;
+    if (eventCount <= 2) {
+        reasoning += ' Your light schedule today allows for sustained focus.';
+    } else if (eventCount <= 4) {
+        reasoning += ' Despite a moderate schedule, this gap offers quality focus time.';
+    } else {
+        reasoning += ' This is your best available window in a busy day.';
     }
+    
+    return reasoning;
+}
+
+/**
+ * Generate personalized ritual based on calendar context
+ * @param {Array} events - Calendar events for context
+ * @returns {Object} Generated ritual
+ */
+function generatePersonalizedRitual(events) {
+    const now = new Date();
+    const hour = now.getHours();
+    const eventCount = events ? events.length : 0;
+    
+    // Determine context
+    const timeOfDay = hour < 12 ? 'morning' : hour < 17 ? 'afternoon' : 'evening';
+    const calendarDensity = eventCount <= 2 ? 'light' : eventCount <= 4 ? 'moderate' : 'busy';
+    
+    // Ritual templates based on context
+    const rituals = {
+        morning: {
+            light: {
+                name: 'Morning Flow',
+                workDuration: 90,
+                breakDuration: 15,
+                description: 'Start your day with extended deep work when your mind is fresh and your schedule is open.',
+                suggestedSoundscape: 'forest'
+            },
+            moderate: {
+                name: 'Morning Sprint',
+                workDuration: 75,
+                breakDuration: 10,
+                description: 'Efficient focused work session designed for productive mornings with upcoming commitments.',
+                suggestedSoundscape: 'cafe'
+            },
+            busy: {
+                name: 'Morning Burst',
+                workDuration: 50,
+                breakDuration: 10,
+                description: 'Quick but effective focus session to tackle priorities before a packed day begins.',
+                suggestedSoundscape: 'white-noise'
+            }
+        },
+        afternoon: {
+            light: {
+                name: 'Afternoon Deep Dive',
+                workDuration: 85,
+                breakDuration: 15,
+                description: 'Sustained afternoon focus session perfect for complex tasks and creative work.',
+                suggestedSoundscape: 'rain'
+            },
+            moderate: {
+                name: 'Afternoon Focus',
+                workDuration: 70,
+                breakDuration: 12,
+                description: 'Balanced work session that fits well between your afternoon commitments.',
+                suggestedSoundscape: 'nature'
+            },
+            busy: {
+                name: 'Power Hour',
+                workDuration: 60,
+                breakDuration: 8,
+                description: 'Concentrated effort designed to maximize productivity in limited time.',
+                suggestedSoundscape: 'waves'
+            }
+        },
+        evening: {
+            light: {
+                name: 'Evening Reflection',
+                workDuration: 75,
+                breakDuration: 20,
+                description: 'Thoughtful evening session with extended breaks for reflection and planning.',
+                suggestedSoundscape: 'rain'
+            },
+            moderate: {
+                name: 'Evening Wind-Down',
+                workDuration: 60,
+                breakDuration: 15,
+                description: 'Gentle evening focus with mindful breaks to transition toward rest.',
+                suggestedSoundscape: 'forest'
+            },
+            busy: {
+                name: 'Evening Wrap-Up',
+                workDuration: 45,
+                breakDuration: 10,
+                description: 'Quick evening session to complete essential tasks before day\'s end.',
+                suggestedSoundscape: 'cafe'
+            }
+        }
+    };
+    
+    const selectedRitual = rituals[timeOfDay][calendarDensity];
+    
+    return {
+        ...selectedRitual,
+        mindfulnessBreaks: calendarDensity !== 'busy', // More mindful when less busy
+        timeOfDay,
+        calendarDensity
+    };
 }
 
 /**
@@ -1090,10 +1050,13 @@ function displayFocusTimeResult(result) {
                 <div class="focus-reasoning">
                     No suitable focus windows found in your calendar today. Your schedule is quite full! Consider blocking time tomorrow or finding a shorter 30-minute slot for a quick focus session.
                 </div>
-                <button class="close-results-btn" onclick="hideAIResults()" aria-label="Close results">×</button>
+                <button class="close-results-btn" data-action="close-results" aria-label="Close results">×</button>
             </div>
         `;
         aiResults.classList.remove('hidden');
+        
+        // Add event listeners for dynamic buttons
+        addAIResultsEventListeners();
         return;
     }
     
@@ -1127,16 +1090,19 @@ function displayFocusTimeResult(result) {
             ${result.reasoning ? `
                 <div class="focus-reasoning">${escapeHtml(result.reasoning)}</div>
             ` : ''}
-            <button class="start-session-btn" onclick="startFocusSession(${result.duration})">
+            <button class="start-session-btn" data-action="start-session" data-duration="${result.duration}">
                 <span>🚀</span>
                 Start Focus Session
             </button>
-            <button class="close-results-btn" onclick="hideAIResults()" aria-label="Close results">×</button>
+            <button class="close-results-btn" data-action="close-results" aria-label="Close results">×</button>
         </div>
     `;
     
     aiResults.classList.remove('hidden');
     announceToScreenReader(`Optimal focus window found from ${startTimeStr} to ${endTimeStr}`);
+    
+    // Add event listeners for dynamic buttons
+    addAIResultsEventListeners();
 }
 
 /**
@@ -1192,17 +1158,20 @@ function displayRitualResult(ritual) {
                         <span>Recommended: ${escapeHtml(ritual.suggestedSoundscape)}</span>
                     </div>
                 ` : ''}
-                <button class="use-ritual-btn" onclick="useRitual('${escapeHtml(ritual.name)}', ${ritual.workDuration}, ${ritual.breakDuration}, '${ritual.suggestedSoundscape || 'rain'}')">
+                <button class="use-ritual-btn" data-action="use-ritual" data-name="${escapeHtml(ritual.name)}" data-work="${ritual.workDuration}" data-break="${ritual.breakDuration}" data-soundscape="${ritual.suggestedSoundscape || 'rain'}">
                     <span>🚀</span>
                     Use This Ritual
                 </button>
             </div>
-            <button class="close-results-btn" onclick="hideAIResults()" aria-label="Close results">×</button>
+            <button class="close-results-btn" data-action="close-results" aria-label="Close results">×</button>
         </div>
     `;
     
     aiResults.classList.remove('hidden');
     announceToScreenReader(`Ritual generated: ${ritual.name}`);
+    
+    // Add event listeners for dynamic buttons
+    addAIResultsEventListeners();
 }
 
 /**
@@ -1234,11 +1203,11 @@ function showAIError(message) {
         <div class="ai-error">
             <div class="ai-error-icon">⚠️</div>
             <div class="ai-error-message">${escapeHtml(message)}</div>
-            <button class="retry-ai-btn" onclick="retryLastAIAction()">
+            <button class="retry-ai-btn" data-action="retry-ai">
                 <span>🔄</span>
                 Try Again
             </button>
-            <button class="close-results-btn" onclick="hideAIResults()" aria-label="Close results">×</button>
+            <button class="close-results-btn" data-action="close-results" aria-label="Close results">×</button>
         </div>
     `;
     aiResults.classList.remove('hidden');
@@ -1307,16 +1276,117 @@ function showSessionScreen() {
 // Handle pause session button click
 function handlePauseSession() {
     console.log('Pause session clicked');
-    // Implement pause functionality
-    // For now, just show controls
+    
+    const timerState = CoreLogic.getTimerState();
+    
+    if (timerState.isPaused) {
+        // Resume the timer
+        CoreLogic.resumeTimer();
+        updatePauseButton(false);
+        announceToScreenReader('Session resumed');
+    } else {
+        // Pause the timer
+        CoreLogic.pauseTimer();
+        updatePauseButton(true);
+        announceToScreenReader('Session paused');
+    }
+    
     handleMouseActivity();
 }
 
 // Handle stop session button click
 function handleStopSession() {
     console.log('Stop session clicked');
+    
+    // Stop the timer
+    CoreLogic.stopTimer();
+    
+    // Stop any playing sounds
+    Platform.stopAllSounds();
+    
     // Return to events screen
     showScreen('events');
+    
+    announceToScreenReader('Session stopped');
+}
+
+// Update pause button text based on state
+function updatePauseButton(isPaused) {
+    const pauseBtn = document.getElementById('pause-btn');
+    if (pauseBtn) {
+        pauseBtn.textContent = isPaused ? 'Resume' : 'Pause';
+    }
+}
+
+// Start a timer with the given duration in minutes
+function startTimer(durationMinutes) {
+    console.log(`Starting timer for ${durationMinutes} minutes`);
+    
+    const durationSeconds = CoreLogic.minutesToSeconds(durationMinutes);
+    
+    // Start the timer with callbacks
+    CoreLogic.startTimer(
+        durationSeconds,
+        (remainingSeconds) => {
+            // Update timer display on each tick
+            updateTimerDisplay(remainingSeconds);
+        },
+        () => {
+            // Handle timer completion
+            handleTimerComplete();
+        }
+    );
+    
+    // Initialize the display
+    updateTimerDisplay(durationSeconds);
+    updatePauseButton(false);
+}
+
+// Update the timer display
+function updateTimerDisplay(remainingSeconds) {
+    const timerDisplay = document.getElementById('timer-display');
+    if (timerDisplay) {
+        timerDisplay.textContent = CoreLogic.formatTime(remainingSeconds);
+    }
+    
+    // Update progress bar if it exists
+    const timerState = CoreLogic.getTimerState();
+    const progressBar = document.getElementById('timer-progress');
+    if (progressBar && timerState.totalDuration > 0) {
+        const progress = CoreLogic.calculateProgress(timerState.elapsed, timerState.totalDuration);
+        progressBar.style.width = `${progress}%`;
+    }
+}
+
+// Handle timer completion
+async function handleTimerComplete() {
+    console.log('Timer completed');
+    
+    // Show notification
+    try {
+        await Platform.createNotification({
+            title: 'AuraFlow',
+            message: 'Focus session complete! Great work!',
+            iconUrl: Platform.getResourceURL('icons/icon128.png')
+        });
+    } catch (error) {
+        console.error('Error showing notification:', error);
+    }
+    
+    // Play completion sound
+    try {
+        await Platform.playSound('notification', 80);
+    } catch (error) {
+        console.error('Error playing sound:', error);
+    }
+    
+    // Announce to screen reader
+    announceToScreenReader('Focus session complete!');
+    
+    // Return to events screen after a short delay
+    setTimeout(() => {
+        showScreen('events');
+    }, 2000);
 }
 
 // ============================================================================
@@ -1324,15 +1394,18 @@ function handleStopSession() {
 // ============================================================================
 
 // Initialize theme system
-function initializeTheme() {
+async function initializeTheme() {
     // Load saved theme from storage
-    chrome.storage.sync.get(['auraflow_theme'], function(result) {
-        if (result.auraflow_theme) {
-            applyTheme(result.auraflow_theme);
+    try {
+        const theme = await Platform.getData('auraflow_theme');
+        if (theme) {
+            applyTheme(theme);
             // Update active state on theme buttons
-            updateThemeButtonStates(result.auraflow_theme);
+            updateThemeButtonStates(theme);
         }
-    });
+    } catch (error) {
+        console.error('Error loading theme:', error);
+    }
     
     // Set up theme button event listeners
     setupThemeButtons();
@@ -1373,11 +1446,15 @@ function setupThemeButtons() {
 }
 
 // Switch theme
-function switchTheme(theme) {
+async function switchTheme(theme) {
     applyTheme(theme);
     
     // Save theme preference
-    chrome.storage.sync.set({ 'auraflow_theme': theme });
+    try {
+        await Platform.saveData('auraflow_theme', theme);
+    } catch (error) {
+        console.error('Error saving theme:', error);
+    }
     
     // Update active state on buttons
     updateThemeButtonStates(theme);
@@ -1389,16 +1466,60 @@ function switchTheme(theme) {
 // Apply theme to document
 function applyTheme(theme) {
     // Remove all theme classes
-    document.body.classList.remove('theme-dark', 'theme-calm');
+    document.body.classList.remove('theme-light', 'theme-dark', 'theme-calm', 'theme-beach', 'theme-rain');
     
-    // Add appropriate theme class
-    if (theme === 'dark') {
-        document.body.classList.add('theme-dark');
-    } else if (theme === 'calm') {
-        document.body.classList.add('theme-calm');
-    }
+    // Add new theme class
+    document.body.classList.add(`theme-${theme}`);
+    
+    // Update background animations
+    updateBackgroundAnimation(theme);
     
     currentTheme = theme;
+}
+
+/**
+ * Update background animations based on theme
+ * @param {string} theme - The selected theme
+ */
+function updateBackgroundAnimation(theme) {
+    const rainBg = document.getElementById('rain-background');
+    const wavesBg = document.getElementById('waves-background');
+    
+    // Hide all animations first
+    if (rainBg) rainBg.classList.remove('active');
+    if (wavesBg) wavesBg.classList.remove('active');
+    
+    // Show appropriate animation
+    if (theme === 'rain' && rainBg) {
+        rainBg.classList.add('active');
+        generateRainDrops();
+    } else if (theme === 'beach' && wavesBg) {
+        wavesBg.classList.add('active');
+    }
+}
+
+/**
+ * Generate rain drops animation
+ */
+function generateRainDrops() {
+    const rainContainer = document.getElementById('rain-background');
+    if (!rainContainer) return;
+    
+    // Clear existing drops
+    rainContainer.innerHTML = '';
+    
+    // Generate 60 rain drops
+    for (let i = 0; i < 60; i++) {
+        const drop = document.createElement('div');
+        drop.className = 'rain-drop';
+        
+        // Random positioning and timing
+        drop.style.left = Math.random() * 100 + '%';
+        drop.style.animationDuration = (Math.random() * 1.5 + 0.5) + 's';
+        drop.style.animationDelay = Math.random() * 2 + 's';
+        
+        rainContainer.appendChild(drop);
+    }
 }
 
 // Update active state on theme buttons
@@ -1424,14 +1545,17 @@ function updateInitialThemeState() {
 // ============================================================================
 
 // Initialize Quick Start feature
-function initializeQuickStart() {
+async function initializeQuickStart() {
     // Load saved session settings from storage
-    chrome.storage.sync.get(['auraflow_last_session'], function(result) {
-        if (result.auraflow_last_session) {
-            lastSessionSettings = result.auraflow_last_session;
+    try {
+        const settings = await Platform.getData('auraflow_last_session');
+        if (settings) {
+            lastSessionSettings = settings;
             updateQuickStartButton();
         }
-    });
+    } catch (error) {
+        console.error('Error loading Quick Start settings:', error);
+    }
 }
 
 // Update Quick Start button visibility and text
@@ -1467,37 +1591,63 @@ function handleQuickStart() {
 }
 
 // Save session settings when starting a new session
-function saveSessionSettings(settings) {
+async function saveSessionSettings(settings) {
     lastSessionSettings = settings;
     
-    // Save to chrome.storage.sync for persistence
-    chrome.storage.sync.set({ 'auraflow_last_session': settings });
-    
-    console.log('Session settings saved:', settings);
+    // Save to storage for persistence
+    try {
+        await Platform.saveData('auraflow_last_session', settings);
+        console.log('Session settings saved:', settings);
+    } catch (error) {
+        console.error('Error saving session settings:', error);
+    }
 }
 
-// Start a focus session with the given settings
-function startFocusSession(settings) {
-    console.log('Starting focus session with settings:', settings);
+// Start a focus session with the given settings or duration
+function startFocusSession(settingsOrDuration, breakDuration, taskGoal) {
+    console.log('Starting focus session with:', settingsOrDuration);
     
-    // Apply settings to the session
-    if (settings.ritual) {
-        // Set timer duration
-        const timerDisplay = document.getElementById('timer-display');
-        if (timerDisplay && settings.ritual.workDuration) {
-            const minutes = settings.ritual.workDuration;
-            timerDisplay.textContent = `${minutes}:00`;
+    // Handle different parameter types
+    if (typeof settingsOrDuration === 'number') {
+        // Called with duration only
+        const duration = settingsOrDuration;
+        
+        // Store session settings
+        chrome.storage.local.set({
+            sessionDuration: duration,
+            sessionType: 'focus'
+        });
+        
+        // Switch to session screen
+        showSessionScreen();
+        
+        // Start the timer
+        startTimer(duration);
+        
+        announceToScreenReader(`Starting ${duration} minute focus session`);
+    } else {
+        // Called with settings object
+        const settings = settingsOrDuration;
+        
+        // Apply settings to the session
+        if (settings.ritual) {
+            // Set timer duration
+            const timerDisplay = document.getElementById('timer-display');
+            if (timerDisplay && settings.ritual.workDuration) {
+                const minutes = settings.ritual.workDuration;
+                timerDisplay.textContent = `${minutes}:00`;
+            }
+            
+            // Set soundscape if available
+            const soundscapeSelector = document.getElementById('soundscape-selector');
+            if (soundscapeSelector && settings.soundscape) {
+                soundscapeSelector.value = settings.soundscape;
+            }
         }
         
-        // Set soundscape if available
-        const soundscapeSelector = document.getElementById('soundscape-selector');
-        if (soundscapeSelector && settings.soundscape) {
-            soundscapeSelector.value = settings.soundscape;
-        }
+        // Show the session screen
+        showSessionScreen();
     }
-    
-    // Show the session screen
-    showSessionScreen();
 }
 
 // ============================================================================
@@ -1505,48 +1655,15 @@ function startFocusSession(settings) {
 // ============================================================================
 
 /**
- * Starts a focus session with notifications
- * @param {number} workDuration - Work duration in minutes
- * @param {number} breakDuration - Break duration in minutes
- * @param {string} taskGoal - User's task goal
+ * Handle Quick Focus button click - starts a standard 25-minute focus session
  */
-async function startFocusSession(workDuration, breakDuration, taskGoal) {
-  try {
-    // Start the session with notifications
-    const response = await sendMessageToServiceWorker({
-      action: 'startSession',
-      data: {
-        workDuration,
-        breakDuration,
-        taskGoal
-      }
-    });
+function handleQuickFocus() {
+    console.log('Quick Focus button clicked');
     
-    if (response.success) {
-      console.log('Focus session started');
-      
-      // Enable website blocking
-      try {
-        const blockingResponse = await sendMessageToServiceWorker({
-          action: 'startFocus'
-        });
-        if (blockingResponse.success) {
-          console.log('Website blocking enabled');
-        }
-      } catch (blockingError) {
-        console.warn('Failed to enable blocking, but session continues:', blockingError);
-      }
-      
-      // Update UI to show active session
-      showSessionStartedUI(workDuration, breakDuration, taskGoal);
-      announceToScreenReader(`Focus session started: ${workDuration} minutes of work, ${breakDuration} minutes of break`);
-    } else {
-      throw new Error(response.error || 'Failed to start session');
-    }
-  } catch (error) {
-    console.error('Failed to start focus session:', error);
-    showError('Failed to start focus session. Please try again.');
-  }
+    // Start a standard 25-minute focus session
+    startFocusSession(25);
+    
+    announceToScreenReader('Starting 25 minute focus session');
 }
 
 /**
@@ -1677,8 +1794,7 @@ function showSessionEndedUI() {
  */
 async function loadBlockedSites() {
   try {
-    const result = await chrome.storage.sync.get(['auraFlowBlockedSites']);
-    const blockedSites = result.auraFlowBlockedSites || [];
+    const blockedSites = await Platform.getData('auraFlowBlockedSites') || [];
     
     const textarea = document.getElementById('blocked-sites-list');
     if (textarea && blockedSites.length > 0) {
@@ -1704,8 +1820,8 @@ async function handleSaveBlockedSites() {
       .map(site => site.trim())
       .filter(site => site.length > 0); // Remove empty lines
     
-    // Save to chrome.storage.sync
-    await chrome.storage.sync.set({ auraFlowBlockedSites: sites });
+    // Save to storage
+    await Platform.saveData('auraFlowBlockedSites', sites);
     
     console.log('Blocked sites saved:', sites);
     
@@ -1721,23 +1837,6 @@ async function handleSaveBlockedSites() {
 }
 
 /**
- * Shows success feedback when blocked sites are saved
- */
-function showBlockingSaveSuccess() {
-  const button = document.getElementById('save-blocked-sites-button');
-  if (!button) return;
-  
-  const originalText = button.innerHTML;
-  button.innerHTML = '<span class="btn-icon">✅</span> Saved!';
-  button.disabled = true;
-  
-  setTimeout(() => {
-    button.innerHTML = originalText;
-    button.disabled = false;
-  }, 2000);
-}
-
-/**
  * Hide AI results panel
  */
 function hideAIResults() {
@@ -1749,29 +1848,8 @@ function hideAIResults() {
 }
 
 /**
- * Start focus session with specified duration
- * @param {number} duration - Session duration in minutes
+ * Start focus session with specified duration (handled by unified function above)
  */
-function startFocusSession(duration) {
-    console.log(`Starting focus session for ${duration} minutes`);
-    
-    // Store session settings
-    chrome.storage.local.set({
-        sessionDuration: duration,
-        sessionType: 'focus'
-    });
-    
-    // Switch to session screen
-    showSessionScreen();
-    
-    // Start the timer
-    startTimer(duration);
-    
-    // Hide AI results
-    hideAIResults();
-    
-    announceToScreenReader(`Starting ${duration} minute focus session`);
-}
 
 /**
  * Use the generated ritual for a session
@@ -1780,34 +1858,43 @@ function startFocusSession(duration) {
  * @param {number} breakDuration - Break duration in minutes
  * @param {string} soundscape - Recommended soundscape
  */
-function useRitual(name, workDuration, breakDuration, soundscape) {
-    console.log(`Using ritual: ${name}`);
+async function useRitual(name, workDuration, breakDuration, soundscape) {
+    console.log(`Using ritual: ${name}, Work: ${workDuration}, Break: ${breakDuration}, Soundscape: ${soundscape}`);
     
-    // Store ritual settings
-    chrome.storage.local.set({
-        ritualName: name,
-        sessionDuration: workDuration,
-        breakDuration: breakDuration,
-        recommendedSoundscape: soundscape,
-        sessionType: 'ritual'
-    });
-    
-    // Set the soundscape selector if available
-    const soundscapeSelector = document.getElementById('soundscape-selector');
-    if (soundscapeSelector) {
-        soundscapeSelector.value = soundscape;
+    try {
+        // Store ritual settings using Chrome storage
+        chrome.storage.local.set({
+            ritualName: name,
+            sessionDuration: workDuration,
+            breakDuration: breakDuration,
+            recommendedSoundscape: soundscape,
+            sessionType: 'ritual'
+        });
+        
+        // Set the soundscape selector if available
+        const soundscapeSelector = document.getElementById('soundscape-selector');
+        if (soundscapeSelector) {
+            soundscapeSelector.value = soundscape;
+        }
+        
+        // Switch to session screen
+        showSessionScreen();
+        
+        // Start the timer (simplified for now)
+        const timerDisplay = document.getElementById('timer-display');
+        if (timerDisplay) {
+            timerDisplay.textContent = `${workDuration}:00`;
+        }
+        
+        // Hide AI results
+        hideAIResults();
+        
+        announceToScreenReader(`Starting ${name} ritual with ${workDuration} minute work session`);
+        
+    } catch (error) {
+        console.error('Error using ritual:', error);
+        showAIError('Failed to start ritual. Please try again.');
     }
-    
-    // Switch to session screen
-    showSessionScreen();
-    
-    // Start the timer
-    startTimer(workDuration);
-    
-    // Hide AI results
-    hideAIResults();
-    
-    announceToScreenReader(`Starting ${name} ritual with ${workDuration} minute work session`);
 }
 
 /**
@@ -1823,13 +1910,29 @@ function retryLastAIAction() {
 }
 
 /**
- * Handle Quick Focus button click - starts a standard 25-minute focus session
+ * Add event listeners for dynamically created AI result buttons
  */
-function handleQuickFocus() {
-    console.log('Quick Focus button clicked');
+function addAIResultsEventListeners() {
+    const aiResults = document.getElementById('ai-results');
+    if (!aiResults) return;
     
-    // Start a standard 25-minute focus session
-    startFocusSession(25);
-    
-    announceToScreenReader('Starting 25 minute focus session');
+    // Use event delegation
+    aiResults.addEventListener('click', (e) => {
+        const action = e.target.dataset.action;
+        
+        if (action === 'close-results') {
+            hideAIResults();
+        } else if (action === 'start-session') {
+            const duration = parseInt(e.target.dataset.duration);
+            startFocusSession(duration);
+        } else if (action === 'use-ritual') {
+            const name = e.target.dataset.name;
+            const work = parseInt(e.target.dataset.work);
+            const breakTime = parseInt(e.target.dataset.break);
+            const soundscape = e.target.dataset.soundscape;
+            useRitual(name, work, breakTime, soundscape);
+        } else if (action === 'retry-ai') {
+            retryLastAIAction();
+        }
+    });
 }

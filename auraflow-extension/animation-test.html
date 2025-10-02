@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AuraFlow Video Animation Test</title>
+    <link rel="stylesheet" href="popup.css">
+    <style>
+        body {
+            margin: 0;
+            padding: 20px;
+            font-family: 'Inter', sans-serif;
+            height: 100vh;
+            overflow: hidden;
+        }
+        
+        .test-controls {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            z-index: 1000;
+            background: rgba(255, 255, 255, 0.9);
+            padding: 20px;
+            border-radius: 12px;
+            backdrop-filter: blur(10px);
+        }
+        
+        .test-btn {
+            margin: 5px;
+            padding: 10px 15px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 500;
+            transition: all 0.3s ease;
+        }
+        
+        .test-btn:hover {
+            transform: translateY(-2px);
+        }
+        
+        .rain-btn {
+            background: linear-gradient(135deg, #0f172a, #334155);
+            color: white;
+        }
+        
+        .beach-btn {
+            background: linear-gradient(135deg, #fbbf24, #06b6d4);
+            color: white;
+        }
+        
+        .content {
+            position: relative;
+            z-index: 1;
+            text-align: center;
+            margin-top: 100px;
+        }
+        
+        .glass-card {
+            background: rgba(255, 255, 255, 0.15);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.18);
+            border-radius: 12px;
+            padding: 30px;
+            margin: 20px auto;
+            max-width: 300px;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+        }
+    </style>
+</head>
+<body class="theme-dark">
+    <div class="background-gradient"></div>
+    
+    <!-- Video Animated Backgrounds -->
+    <div id="rain-background" class="background-animation rain-animation">
+        <video class="background-video" autoplay muted loop>
+            <source src="https://cdn.pixabay.com/video/2016/05/31/3769-168916166_large.mp4" type="video/mp4">
+        </video>
+        <div class="video-overlay"></div>
+    </div>
+    
+    <div id="waves-background" class="background-animation waves-animation">
+        <video class="background-video" autoplay muted loop>
+            <source src="https://cdn.pixabay.com/video/2016/03/26/2882-160748792_large.mp4" type="video/mp4">
+        </video>
+        <div class="video-overlay"></div>
+    </div>
+    
+    <div class="test-controls">
+        <h3>🎬 Video Animation Test</h3>
+        <button class="test-btn rain-btn" onclick="testTheme('rain')">🌧️ Rain Video</button>
+        <button class="test-btn beach-btn" onclick="testTheme('beach')">🏖️ Beach Video</button>
+        <button class="test-btn" onclick="testTheme('dark')" style="background: #1e293b; color: white;">🌙 Dark</button>
+    </div>
+    
+    <div class="content">
+        <div class="glass-card">
+            <h2>AuraFlow Video Backgrounds</h2>
+            <p>Click the buttons above to test realistic video backgrounds!</p>
+            <p id="current-theme">Current: Dark Theme</p>
+        </div>
+    </div>
+
+    <script>
+        function testTheme(theme) {
+            document.body.classList.remove('theme-light', 'theme-dark', 'theme-calm', 'theme-beach', 'theme-rain');
+            document.body.classList.add(`theme-${theme}`);
+            updateBackgroundAnimation(theme);
+            document.getElementById('current-theme').textContent = `Current: ${theme.charAt(0).toUpperCase() + theme.slice(1)} Theme`;
+        }
+
+        function updateBackgroundAnimation(theme) {
+            const rainBg = document.getElementById('rain-background');
+            const wavesBg = document.getElementById('waves-background');
+            
+            if (rainBg) rainBg.classList.remove('active');
+            if (wavesBg) wavesBg.classList.remove('active');
+            
+            if (theme === 'rain' && rainBg) {
+                rainBg.classList.add('active');
+                const rainVideo = rainBg.querySelector('video');
+                if (rainVideo) rainVideo.play().catch(e => console.log('Rain video autoplay prevented'));
+            } else if (theme === 'beach' && wavesBg) {
+                wavesBg.classList.add('active');
+                const wavesVideo = wavesBg.querySelector('video');
+                if (wavesVideo) wavesVideo.play().catch(e => console.log('Waves video autoplay prevented'));
+            }
+        }
+
+        testTheme('dark');
+    </script>
+</body>
+</html>
