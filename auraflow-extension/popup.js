@@ -41,6 +41,22 @@ const SOUNDSCAPE_AUDIO_MAP = {
     }
 };
 
+const FOCUS_TIMER_STORAGE_KEY = 'auraflow_focus_timer_state';
+const SESSION_STATUS = {
+    IDLE: 'idle',
+    PENDING: 'pending',
+    RUNNING: 'running',
+    PAUSED: 'paused'
+};
+const DEFAULT_SESSION_DURATION_MINUTES = 25;
+
+let focusTimerStatus = SESSION_STATUS.IDLE;
+let focusTimerDurationMinutes = DEFAULT_SESSION_DURATION_MINUTES;
+let focusTimerRemainingMs = DEFAULT_SESSION_DURATION_MINUTES * 60 * 1000;
+let focusTimerEndTime = null;
+let focusTimerIntervalId = null;
+let focusTimerSoundscape = 'rain';
+
 document.addEventListener('DOMContentLoaded', function () {
     console.log('AuraFlow Calendar popup loaded');
 
@@ -64,6 +80,9 @@ document.addEventListener('DOMContentLoaded', function () {
     
     // Set up session event listeners
     setupSessionEventListeners();
+
+    // Restore any in-progress focus session
+    restoreFocusTimerState();
 });
 
 async function initializePopup() {
@@ -1296,7 +1315,13 @@ function setupSessionEventListeners() {
         // Add button event listeners
         const pauseBtn = document.getElementById('pause-btn');
         const stopBtn = document.getElementById('stop-btn');
+        const startBtn = document.getElementById('start-btn');
         
+        if (startBtn) {
+            startBtn.addEventListener('click', handleStartSessionButton);
+            startBtn.addEventListener('keydown', (e) => handleButtonKeydown(e, handleStartSessionButton));
+        }
+
         if (pauseBtn) {
             pauseBtn.addEventListener('click', handlePauseSession);
             pauseBtn.addEventListener('keydown', (e) => handleButtonKeydown(e, handlePauseSession));
@@ -1318,6 +1343,9 @@ function setupSessionEventListeners() {
             populateSoundscapeOptions(soundscapeSelector);
             soundscapeSelector.addEventListener('change', handleSoundscapeChange);
         }
+
+        updateSessionControlState(focusTimerStatus);
+        updateTimerDisplay();
     }
 }
 
@@ -1352,22 +1380,312 @@ function showSessionScreen() {
             sessionContainer.classList.remove('mouse-active');
         }, MOUSE_INACTIVE_DELAY);
     }
+
+    updateSessionControlState(focusTimerStatus);
+    updateTimerDisplay();
+
+    if (focusTimerStatus === SESSION_STATUS.RUNNING) {
+        playFocusAudio(focusTimerSoundscape);
+    }
 }
 
 // Handle pause session button click
 function handlePauseSession() {
     console.log('Pause session clicked');
-    // Implement pause functionality
-    // For now, just show controls
-    handleMouseActivity();
+    pauseFocusTimer();
 }
 
 // Handle stop session button click
 function handleStopSession() {
     console.log('Stop session clicked');
-    stopFocusAudio();
+    stopFocusTimer({ resetToDefault: false });
     // Return to events screen
     showScreen('events');
+}
+
+// ============================================================================
+// FOCUS TIMER STATE MANAGEMENT
+// ============================================================================
+
+function handleStartSessionButton() {
+    if (focusTimerStatus === SESSION_STATUS.RUNNING) {
+        return;
+    }
+
+    if (focusTimerStatus === SESSION_STATUS.IDLE) {
+        focusTimerRemainingMs = focusTimerDurationMinutes * 60 * 1000;
+    } else if (focusTimerStatus === SESSION_STATUS.PENDING && focusTimerRemainingMs <= 0) {
+        focusTimerRemainingMs = focusTimerDurationMinutes * 60 * 1000;
+    } else if (focusTimerStatus === SESSION_STATUS.PAUSED && focusTimerRemainingMs <= 0) {
+        focusTimerRemainingMs = focusTimerDurationMinutes * 60 * 1000;
+    }
+
+    startFocusTimerCountdown({ announce: true });
+}
+
+function updateSessionControlState(status) {
+    const startBtn = document.getElementById('start-btn');
+    const pauseBtn = document.getElementById('pause-btn');
+    const stopBtn = document.getElementById('stop-btn');
+
+    if (!startBtn || !pauseBtn || !stopBtn) {
+        return;
+    }
+
+    switch (status) {
+        case SESSION_STATUS.RUNNING:
+            startBtn.classList.add('hidden');
+            pauseBtn.classList.remove('hidden');
+            stopBtn.classList.remove('hidden');
+            break;
+        case SESSION_STATUS.PAUSED:
+            startBtn.textContent = 'Resume';
+            startBtn.classList.remove('hidden');
+            pauseBtn.classList.add('hidden');
+            stopBtn.classList.remove('hidden');
+            break;
+        case SESSION_STATUS.PENDING:
+            startBtn.textContent = 'Start';
+            startBtn.classList.remove('hidden');
+            pauseBtn.classList.add('hidden');
+            stopBtn.classList.add('hidden');
+            break;
+        default:
+            startBtn.textContent = 'Start';
+            startBtn.classList.remove('hidden');
+            pauseBtn.classList.add('hidden');
+            stopBtn.classList.add('hidden');
+            break;
+    }
+}
+
+function updateTimerDisplay() {
+    const timerDisplay = document.getElementById('timer-display');
+    if (!timerDisplay) {
+        return;
+    }
+
+    let displayMs = focusTimerRemainingMs;
+
+    if (!displayMs || displayMs <= 0) {
+        const fallbackMinutes = focusTimerDurationMinutes || DEFAULT_SESSION_DURATION_MINUTES;
+        displayMs = fallbackMinutes * 60 * 1000;
+    }
+
+    timerDisplay.textContent = formatMilliseconds(displayMs);
+}
+
+function formatMilliseconds(ms) {
+    const totalSeconds = Math.max(0, Math.round(ms / 1000));
+    const minutes = Math.floor(totalSeconds / 60);
+    const seconds = totalSeconds % 60;
+    const paddedMinutes = String(minutes).padStart(2, '0');
+    const paddedSeconds = String(seconds).padStart(2, '0');
+    return `${paddedMinutes}:${paddedSeconds}`;
+}
+
+function startFocusTimerCountdown({ announce = false } = {}) {
+    if (focusTimerRemainingMs <= 0) {
+        focusTimerRemainingMs = focusTimerDurationMinutes * 60 * 1000;
+    }
+
+    focusTimerEndTime = Date.now() + focusTimerRemainingMs;
+    focusTimerStatus = SESSION_STATUS.RUNNING;
+
+    updateSessionControlState(focusTimerStatus);
+    persistFocusTimerState();
+    updateTimerDisplay();
+
+    playFocusAudio(focusTimerSoundscape);
+    startFocusTimerInterval();
+
+    if (announce) {
+        const minutesRemaining = Math.max(1, Math.ceil(focusTimerRemainingMs / 60000));
+        announceToScreenReader(`Focus session started with ${minutesRemaining} minutes remaining`);
+    }
+}
+
+function startFocusTimerInterval() {
+    clearFocusTimerInterval();
+
+    if (focusTimerStatus !== SESSION_STATUS.RUNNING || !focusTimerEndTime) {
+        return;
+    }
+
+    focusTimerIntervalId = setInterval(() => {
+        if (focusTimerStatus !== SESSION_STATUS.RUNNING || !focusTimerEndTime) {
+            clearFocusTimerInterval();
+            return;
+        }
+
+        const remaining = focusTimerEndTime - Date.now();
+        focusTimerRemainingMs = Math.max(0, remaining);
+        updateTimerDisplay();
+
+        if (remaining <= 0) {
+            clearFocusTimerInterval();
+            completeFocusTimer();
+        }
+    }, 1000);
+}
+
+function clearFocusTimerInterval() {
+    if (focusTimerIntervalId) {
+        clearInterval(focusTimerIntervalId);
+        focusTimerIntervalId = null;
+    }
+}
+
+function pauseFocusTimer() {
+    if (focusTimerStatus !== SESSION_STATUS.RUNNING) {
+        return;
+    }
+
+    const remaining = focusTimerEndTime ? Math.max(0, focusTimerEndTime - Date.now()) : focusTimerRemainingMs;
+    focusTimerRemainingMs = remaining;
+    focusTimerEndTime = null;
+    focusTimerStatus = SESSION_STATUS.PAUSED;
+
+    clearFocusTimerInterval();
+    persistFocusTimerState();
+    updateSessionControlState(focusTimerStatus);
+    updateTimerDisplay();
+    stopFocusAudio();
+    announceToScreenReader('Focus session paused');
+}
+
+function stopFocusTimer({ resetToDefault = false } = {}) {
+    clearFocusTimerInterval();
+    focusTimerEndTime = null;
+
+    if (resetToDefault) {
+        focusTimerDurationMinutes = DEFAULT_SESSION_DURATION_MINUTES;
+    }
+
+    focusTimerRemainingMs = focusTimerDurationMinutes * 60 * 1000;
+    focusTimerStatus = SESSION_STATUS.IDLE;
+
+    persistFocusTimerState({ remove: true });
+    updateSessionControlState(focusTimerStatus);
+    updateTimerDisplay();
+    stopFocusAudio();
+}
+
+function completeFocusTimer() {
+    focusTimerStatus = SESSION_STATUS.IDLE;
+    focusTimerEndTime = null;
+    focusTimerRemainingMs = focusTimerDurationMinutes * 60 * 1000;
+
+    persistFocusTimerState({ remove: true });
+    updateSessionControlState(focusTimerStatus);
+    updateTimerDisplay();
+    stopFocusAudio();
+    showSessionEndedUI();
+    announceToScreenReader('Focus session completed');
+}
+
+function prepareFocusTimer(durationMinutes, options = {}) {
+    const safeMinutes = Number(durationMinutes) && durationMinutes > 0 ? Number(durationMinutes) : DEFAULT_SESSION_DURATION_MINUTES;
+    focusTimerDurationMinutes = safeMinutes;
+
+    if (options.remainingMs && options.remainingMs > 0) {
+        focusTimerRemainingMs = options.remainingMs;
+    } else {
+        focusTimerRemainingMs = safeMinutes * 60 * 1000;
+    }
+
+    focusTimerStatus = options.status || SESSION_STATUS.PENDING;
+    focusTimerEndTime = null;
+
+    const resolvedSoundscape = resolveSoundscapeKey(options.soundscape || focusTimerSoundscape || 'rain');
+    focusTimerSoundscape = resolvedSoundscape;
+    currentSoundscape = resolvedSoundscape;
+
+    const soundscapeSelector = document.getElementById('soundscape-selector');
+    if (soundscapeSelector) {
+        soundscapeSelector.value = resolvedSoundscape;
+    }
+
+    updateTimerDisplay();
+    updateSessionControlState(focusTimerStatus);
+    persistFocusTimerState();
+}
+
+function persistFocusTimerState({ remove = false } = {}) {
+    try {
+        if (remove || focusTimerStatus === SESSION_STATUS.IDLE) {
+            chrome.storage.local.remove(FOCUS_TIMER_STORAGE_KEY);
+            return;
+        }
+
+        const state = {
+            status: focusTimerStatus,
+            durationMinutes: focusTimerDurationMinutes,
+            remainingMs: focusTimerRemainingMs,
+            endTime: focusTimerEndTime,
+            soundscape: focusTimerSoundscape
+        };
+
+        chrome.storage.local.set({ [FOCUS_TIMER_STORAGE_KEY]: state });
+    } catch (error) {
+        console.error('Failed to persist focus timer state:', error);
+    }
+}
+
+function restoreFocusTimerState() {
+    try {
+        chrome.storage.local.get([FOCUS_TIMER_STORAGE_KEY], (result) => {
+            const stored = result ? result[FOCUS_TIMER_STORAGE_KEY] : null;
+
+            if (!stored) {
+                focusTimerStatus = SESSION_STATUS.IDLE;
+                focusTimerDurationMinutes = DEFAULT_SESSION_DURATION_MINUTES;
+                focusTimerRemainingMs = focusTimerDurationMinutes * 60 * 1000;
+                focusTimerEndTime = null;
+                focusTimerSoundscape = 'rain';
+                updateSessionControlState(focusTimerStatus);
+                updateTimerDisplay();
+                return;
+            }
+
+            focusTimerStatus = stored.status || SESSION_STATUS.IDLE;
+            focusTimerDurationMinutes = stored.durationMinutes || DEFAULT_SESSION_DURATION_MINUTES;
+            focusTimerRemainingMs = stored.remainingMs || (focusTimerDurationMinutes * 60 * 1000);
+            focusTimerEndTime = stored.endTime || null;
+            focusTimerSoundscape = resolveSoundscapeKey(stored.soundscape || focusTimerSoundscape || 'rain');
+            currentSoundscape = focusTimerSoundscape;
+
+            const soundscapeSelector = document.getElementById('soundscape-selector');
+            if (soundscapeSelector) {
+                soundscapeSelector.value = focusTimerSoundscape;
+            }
+
+            if (focusTimerStatus === SESSION_STATUS.RUNNING && focusTimerEndTime) {
+                const remaining = focusTimerEndTime - Date.now();
+                if (remaining <= 0) {
+                    completeFocusTimer();
+                    return;
+                }
+
+                focusTimerRemainingMs = remaining;
+                updateSessionControlState(focusTimerStatus);
+                updateTimerDisplay();
+                startFocusTimerInterval();
+            } else if (focusTimerStatus === SESSION_STATUS.PAUSED || focusTimerStatus === SESSION_STATUS.PENDING) {
+                focusTimerEndTime = null;
+                updateSessionControlState(focusTimerStatus);
+                updateTimerDisplay();
+            } else {
+                focusTimerStatus = SESSION_STATUS.IDLE;
+                focusTimerEndTime = null;
+                focusTimerRemainingMs = focusTimerDurationMinutes * 60 * 1000;
+                updateSessionControlState(focusTimerStatus);
+                updateTimerDisplay();
+            }
+        });
+    } catch (error) {
+        console.error('Failed to restore focus timer state:', error);
+    }
 }
 
 function handleVolumeChange(event) {
@@ -1378,7 +1696,16 @@ function handleVolumeChange(event) {
 
 function handleSoundscapeChange(event) {
     const selectedSoundscape = event.target.value || 'rain';
-    playFocusAudio(selectedSoundscape);
+    const resolved = resolveSoundscapeKey(selectedSoundscape);
+    focusTimerSoundscape = resolved;
+    currentSoundscape = resolved;
+    persistFocusTimerState();
+
+    if (focusTimerStatus === SESSION_STATUS.RUNNING) {
+        playFocusAudio(resolved);
+    } else {
+        stopFocusAudio();
+    }
 }
 
 function populateSoundscapeOptions(soundscapeSelector) {
@@ -1399,7 +1726,8 @@ function populateSoundscapeOptions(soundscapeSelector) {
 
     selector.appendChild(fragment);
 
-    const resolvedDefault = resolveSoundscapeKey(currentSoundscape);
+    const resolvedDefault = resolveSoundscapeKey(focusTimerSoundscape || currentSoundscape);
+    focusTimerSoundscape = resolvedDefault;
     currentSoundscape = resolvedDefault;
     selector.value = resolvedDefault;
 }
@@ -1490,6 +1818,7 @@ function playFocusAudio(soundscape = 'rain') {
     }
 
     currentSoundscape = resolvedSoundscape;
+    focusTimerSoundscape = resolvedSoundscape;
 
     const currentVolume = getVolumeFromSlider();
     setFocusAudioVolume(currentVolume);
@@ -1667,7 +1996,7 @@ function handleQuickStart() {
     }
     
     // Start a new session with the saved settings
-    startFocusSession(lastSessionSettings);
+    startFocusSessionFromSettings(lastSessionSettings);
 }
 
 // Save session settings when starting a new session
@@ -1681,29 +2010,16 @@ function saveSessionSettings(settings) {
 }
 
 // Start a focus session with the given settings
-function startFocusSession(settings) {
+function startFocusSessionFromSettings(settings) {
     console.log('Starting focus session with settings:', settings);
     
-    // Apply settings to the session
-    if (settings.ritual) {
-        // Set timer duration
-        const timerDisplay = document.getElementById('timer-display');
-        if (timerDisplay && settings.ritual.workDuration) {
-            const minutes = settings.ritual.workDuration;
-            timerDisplay.textContent = `${minutes}:00`;
-        }
-    }
+    const durationMinutes = settings?.ritual?.workDuration || focusTimerDurationMinutes;
+    const resolvedSoundscape = resolveSoundscapeKey(settings?.soundscape || focusTimerSoundscape);
 
-    // Set soundscape if available
-    const soundscapeSelector = document.getElementById('soundscape-selector');
-    const resolvedSoundscape = resolveSoundscapeKey(settings.soundscape || currentSoundscape);
-    currentSoundscape = resolvedSoundscape;
-    if (soundscapeSelector) {
-        soundscapeSelector.value = resolvedSoundscape;
-    }
-    
-    // Show the session screen
+    prepareFocusTimer(durationMinutes, { soundscape: resolvedSoundscape, status: SESSION_STATUS.PENDING });
     showSessionScreen();
+    hideAIResults();
+    startFocusTimerCountdown({ announce: true });
 }
 
 // ============================================================================
@@ -1716,7 +2032,7 @@ function startFocusSession(settings) {
  * @param {number} breakDuration - Break duration in minutes
  * @param {string} taskGoal - User's task goal
  */
-async function startFocusSession(workDuration, breakDuration, taskGoal) {
+async function startFocusSessionWithNotifications(workDuration, breakDuration, taskGoal) {
   try {
     // Start the session with notifications
     const response = await sendMessageToServiceWorker({
@@ -1746,7 +2062,10 @@ async function startFocusSession(workDuration, breakDuration, taskGoal) {
       // Update UI to show active session
       showSessionStartedUI(workDuration, breakDuration, taskGoal);
       announceToScreenReader(`Focus session started: ${workDuration} minutes of work, ${breakDuration} minutes of break`);
-      playFocusAudio(currentSoundscape);
+
+      const durationMinutes = Number(workDuration) && workDuration > 0 ? Number(workDuration) : DEFAULT_SESSION_DURATION_MINUTES;
+      prepareFocusTimer(durationMinutes, { soundscape: currentSoundscape, status: SESSION_STATUS.PENDING });
+      startFocusTimerCountdown({ announce: false });
     } else {
       throw new Error(response.error || 'Failed to start session');
     }
@@ -1782,8 +2101,8 @@ async function endFocusSession() {
       }
       
       // Update UI to show session ended
+      stopFocusTimer({ resetToDefault: false });
       showSessionEndedUI();
-      stopFocusAudio();
       announceToScreenReader('Focus session ended');
     } else {
       throw new Error(response.error || 'Failed to end session');
@@ -1963,23 +2282,18 @@ function hideAIResults() {
 function startFocusSession(duration) {
     console.log(`Starting focus session for ${duration} minutes`);
 
-    // Store session settings
+    const durationMinutes = Number(duration) && duration > 0 ? Number(duration) : DEFAULT_SESSION_DURATION_MINUTES;
+
+    // Store session settings for legacy integrations
     chrome.storage.local.set({
-        sessionDuration: duration,
+        sessionDuration: durationMinutes,
         sessionType: 'focus'
     });
 
-    // Switch to session screen
+    prepareFocusTimer(durationMinutes, { soundscape: currentSoundscape, status: SESSION_STATUS.PENDING });
     showSessionScreen();
-
-    // Start the timer
-    startTimer(duration);
-
-    // Hide AI results
     hideAIResults();
-
-    playFocusAudio(currentSoundscape);
-    announceToScreenReader(`Starting ${duration} minute focus session`);
+    startFocusTimerCountdown({ announce: true });
 }
 
 /**
@@ -2001,25 +2315,14 @@ function useRitual(name, workDuration, breakDuration, soundscape) {
         sessionType: 'ritual'
     });
     
-    // Set the soundscape selector if available
     const resolvedSoundscape = resolveSoundscapeKey(soundscape);
+    const durationMinutes = Number(workDuration) && workDuration > 0 ? Number(workDuration) : DEFAULT_SESSION_DURATION_MINUTES;
 
-    const soundscapeSelector = document.getElementById('soundscape-selector');
-    if (soundscapeSelector) {
-        soundscapeSelector.value = resolvedSoundscape;
-    }
-
-    // Switch to session screen
+    prepareFocusTimer(durationMinutes, { soundscape: resolvedSoundscape, status: SESSION_STATUS.PENDING });
     showSessionScreen();
-
-    // Start the timer
-    startTimer(workDuration);
-
-    // Hide AI results
     hideAIResults();
-
-    playFocusAudio(resolvedSoundscape);
-    announceToScreenReader(`Starting ${name} ritual with ${workDuration} minute work session`);
+    startFocusTimerCountdown({ announce: true });
+    announceToScreenReader(`Starting ${name} ritual with ${durationMinutes} minute work session`);
 }
 
 /**
@@ -2040,8 +2343,9 @@ function retryLastAIAction() {
 function handleQuickFocus() {
     console.log('Quick Focus button clicked');
     
-    // Start a standard 25-minute focus session
-    startFocusSession(25);
-    
-    announceToScreenReader('Starting 25 minute focus session');
+    // Prepare a standard 25-minute focus session and wait for explicit start
+    prepareFocusTimer(25, { soundscape: 'rain', status: SESSION_STATUS.PENDING });
+    hideAIResults();
+    showSessionScreen();
+    announceToScreenReader('Quick focus session ready. Press start to begin your 25 minute timer.');
 }
