@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="stylesheet" href="popup.css">
+    <title>AuraFlow Calendar</title>
+</head>
+
+<body>
+    <div id="app" role="main">
+        <!-- Authentication State -->
+        <div id="auth-screen" class="screen" role="region" aria-label="Authentication">
+            <h2>AuraFlow Calendar</h2>
+            <p>Connect your Google Calendar to see today's events</p>
+            <button id="connect-btn" aria-label="Connect to Google Calendar" tabindex="0">
+                Connect Google Calendar
+            </button>
+        </div>
+
+        <!-- Calendar Events State -->
+        <div id="events-screen" class="screen hidden" role="region" aria-label="Calendar Events">
+            <div class="header">
+                <h3 id="date-header">Today's Events</h3>
+                <button id="refresh-btn" aria-label="Refresh events" title="Refresh events" tabindex="0">
+                    ↻
+                </button>
+                <button id="logout-btn" aria-label="Logout from Google Calendar" tabindex="0">
+                    Logout
+                </button>
+            </div>
+            <div id="events-container" role="list" aria-label="Today's calendar events">
+                <!-- Events will be populated here -->
+            </div>
+            <div id="no-events" class="hidden" role="status" aria-live="polite">
+                <p>No events today</p>
+            </div>
+        </div>
+
+        <!-- Loading State -->
+        <div id="loading-screen" class="screen hidden" role="status" aria-live="polite" aria-label="Loading">
+            <div class="loading-content">
+                <div class="spinner" role="progressbar" aria-label="Loading events"></div>
+                <p id="loading-message">Loading events...</p>
+            </div>
+        </div>
+
+        <!-- Error State -->
+        <div id="error-screen" class="screen hidden" role="alert" aria-live="assertive" aria-label="Error">
+            <p id="error-message">Something went wrong</p>
+            <button id="retry-btn" aria-label="Retry action" tabindex="0">
+                Try Again
+            </button>
+        </div>
+    </div>
+    <script src="popup.js"></script>
+</body>
+
+</html>

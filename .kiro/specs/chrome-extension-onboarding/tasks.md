@@ -40,7 +40,7 @@
   - Test API integration with real Google Calendar data
   - _Requirements: 2.1, 2.4, 3.3, 3.4_
 
-- [-] 6. Build calendar events display functionality
+- [x] 6. Build calendar events display functionality
   - Create event rendering functions for the popup UI
   - Implement time formatting for event start and end times
   - Add chronological sorting for events display
@@ -64,7 +64,7 @@
   - Test all error scenarios and recovery paths
   - _Requirements: 1.5, 2.4, 3.4_
 
-- [ ] 9. Polish UI/UX and add final touches
+- [x] 9. Polish UI/UX and add final touches
   - Refine popup styling and responsive design
   - Add smooth transitions and loading animations
   - Implement keyboard navigation and accessibility features
@@ -72,7 +72,7 @@
   - Test extension across different screen sizes and Chrome versions
   - _Requirements: 1.1, 1.2_
 
-- [ ] 10. Create comprehensive testing and documentation
+- [x] 10. Create comprehensive testing and documentation
   - Consolidate previous 1-off test scripts from previous tasks
   - Write unit tests for core functions (authentication, API calls, UI logic)
   - Create manual testing checklist for all user scenarios
