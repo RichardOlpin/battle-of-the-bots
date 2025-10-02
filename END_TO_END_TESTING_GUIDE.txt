@@ -1,0 +1,460 @@
+================================================================================
+AURAFLOW END-TO-END TESTING GUIDE
+Integration of Backend AI Service with Chrome Extension
+================================================================================
+
+This guide will walk you through testing the complete integrated application,
+from backend startup to Chrome extension AI features.
+
+================================================================================
+PREREQUISITES
+================================================================================
+
+1. Node.js installed (v18 or higher)
+2. Chrome browser installed
+3. Google account with calendar events
+4. Terminal/command line access
+
+================================================================================
+PART 1: START THE BACKEND SERVER
+================================================================================
+
+Step 1: Navigate to Backend Directory
+--------------------------------------
+Open a terminal and run:
+
+    cd battle-of-the-bots
+
+Step 2: Install Dependencies (if not already done)
+--------------------------------------------------
+    npm install
+
+Step 3: Verify Environment Configuration
+----------------------------------------
+Check that the .env file exists and contains:
+
+    PORT=3000
+    NODE_ENV=development
+    GOOGLE_CLIENT_ID=369028620284-5ln73vr959uiiuccov304bpcfmnn8dsn.apps.googleusercontent.com
+    (and other variables)
+
+Step 4: Start the Backend Server
+---------------------------------
+    npm start
+
+Expected Output:
+    ============================================================
+    🚀 AuraFlow AI & Integration Service
+    ============================================================
+    Environment: development
+    Server running on: http://localhost:3000
+    Health check: http://localhost:3000/api/health
+    ============================================================
+
+    Available endpoints:
+      POST   /api/schedule/suggest  - Smart scheduling suggestions
+      POST   /api/ritual/generate   - Personalized ritual generation
+      POST   /api/session/summary   - Session summary generation
+      GET    /api/auth/google       - Initiate Google OAuth
+      GET    /api/auth/status       - Check auth status
+      POST   /api/auth/logout       - Logout
+
+✅ SUCCESS INDICATOR: Server is running without errors on port 3000
+
+⚠️  IMPORTANT: Keep this terminal window open! The server must stay running.
+
+================================================================================
+PART 2: LOAD THE CHROME EXTENSION
+================================================================================
+
+Step 1: Open Chrome Extensions Page
+------------------------------------
+1. Open Google Chrome
+2. Navigate to: chrome://extensions/
+3. Enable "Developer mode" (toggle in top-right corner)
+
+Step 2: Load the Extension
+---------------------------
+1. Click "Load unpacked" button
+2. Navigate to and select the folder: battle-of-the-bots/auraflow-extension
+3. Click "Select" or "Open"
+
+Expected Result:
+    - Extension appears in the list with name "AuraFlow Calendar"
+    - Extension icon appears in Chrome toolbar (top-right)
+    - No errors shown
+
+✅ SUCCESS INDICATOR: Extension loaded without errors
+
+Step 3: Note the Extension ID (Optional)
+-----------------------------------------
+Look for the "ID" field under the extension name. It should look like:
+    abcdefghijklmnopqrstuvwxyz123456
+
+================================================================================
+PART 3: TEST CORE EXTENSION FUNCTIONALITY
+================================================================================
+
+Step 1: Open the Extension
+---------------------------
+Click the AuraFlow Calendar icon in Chrome toolbar
+
+Expected Result:
+    - Popup window opens (approximately 400px wide)
+    - Shows "AuraFlow Calendar" heading
+    - Shows "Connect Google Calendar" button
+
+✅ SUCCESS INDICATOR: Popup opens with authentication screen
+
+Step 2: Authenticate with Google Calendar
+------------------------------------------
+1. Click "Connect Google Calendar" button
+2. Google OAuth consent screen should appear
+3. Select your Google account
+4. Review permissions (read-only calendar access)
+5. Click "Allow" or "Continue"
+
+Expected Result:
+    - Redirected back to extension
+    - Loading spinner appears briefly
+    - Today's calendar events are displayed
+
+✅ SUCCESS INDICATOR: Calendar events are displayed correctly
+
+Step 3: Verify Calendar Events Display
+---------------------------------------
+Check that:
+    - Events are sorted chronologically (earliest first)
+    - Each event shows: Title, Start time - End time
+    - Times are formatted correctly (e.g., "9:00 AM - 10:00 AM")
+    - All-day events show "All day"
+    - If no events today, shows "No events today" message
+
+✅ SUCCESS INDICATOR: Events display correctly with proper formatting
+
+Step 4: Test Refresh Functionality
+-----------------------------------
+1. Click the refresh button (↻) in the top-right
+2. Loading spinner should appear
+3. Events should reload
+
+✅ SUCCESS INDICATOR: Refresh works without errors
+
+================================================================================
+PART 4: TEST AI FEATURES INTEGRATION (THE MAIN EVENT!)
+================================================================================
+
+Step 1: Locate AI Features Section
+-----------------------------------
+Scroll down in the extension popup to find:
+    - "AI-Powered Features" heading
+    - Two buttons: "🎯 Find Focus Time" and "✨ Generate Ritual"
+
+✅ SUCCESS INDICATOR: AI features section is visible
+
+Step 2: Test "Find Focus Time" Feature
+---------------------------------------
+1. Click the "🎯 Find Focus Time" button
+
+Expected Behavior:
+    - Loading message appears: "Finding optimal focus time..."
+    - After 1-2 seconds, result card appears below
+
+Expected Result (if focus time found):
+    ┌─────────────────────────────────────────┐
+    │ 🎯 Optimal Focus Window Found           │
+    │                                         │
+    │        2:30 PM - 4:00 PM               │
+    │                                         │
+    │ Duration: 90 minutes                    │
+    │ Quality Score: 85/100                   │
+    │                                         │
+    │ This afternoon slot provides adequate   │
+    │ buffer time and matches your preference │
+    └─────────────────────────────────────────┘
+
+Expected Result (if no focus time found):
+    ┌─────────────────────────────────────────┐
+    │ 🎯 Focus Time Suggestion                │
+    │                                         │
+    │ No suitable focus windows found in      │
+    │ your calendar today. Your schedule is   │
+    │ quite full!                             │
+    │                                         │
+    │ Consider blocking time tomorrow or      │
+    │ finding a shorter 30-minute slot...     │
+    └─────────────────────────────────────────┘
+
+✅ SUCCESS INDICATOR: Backend responds and result is displayed
+
+What This Tests:
+    ✓ Extension fetches calendar events
+    ✓ Extension transforms events to backend format
+    ✓ Extension calls backend API at http://localhost:3000/api/schedule/suggest
+    ✓ Backend scheduling algorithm processes events
+    ✓ Backend returns focus window suggestion
+    ✓ Extension displays result in UI
+
+Step 3: Test "Generate Ritual" Feature
+---------------------------------------
+1. Click the "✨ Generate Ritual" button
+
+Expected Behavior:
+    - Loading message appears: "Generating personalized ritual..."
+    - After 1-2 seconds, result card appears below
+
+Expected Result:
+    ┌─────────────────────────────────────────┐
+    │ ✨ Creative Deep Work                   │
+    │                                         │
+    │ Work Duration: 50 minutes               │
+    │ Break Duration: 10 minutes              │
+    │ Mindfulness Breaks: Yes                 │
+    │                                         │
+    │ Ideal for complex, creative work        │
+    │ requiring sustained focus               │
+    │                                         │
+    │ Soundscape: Forest Ambience             │
+    └─────────────────────────────────────────┘
+
+Note: The ritual name and details will vary based on:
+    - Time of day (morning/afternoon/evening)
+    - Calendar density (clear/moderate/busy)
+    - Next event title keywords
+
+✅ SUCCESS INDICATOR: Backend responds and ritual is displayed
+
+What This Tests:
+    ✓ Extension analyzes calendar context
+    ✓ Extension calls backend API at http://localhost:3000/api/ritual/generate
+    ✓ Backend ritual generation algorithm processes context
+    ✓ Backend returns personalized ritual
+    ✓ Extension displays ritual details in UI
+
+Step 4: Test Multiple AI Requests
+----------------------------------
+1. Click "Find Focus Time" again
+2. Then click "Generate Ritual"
+3. Alternate between them several times
+
+Expected Result:
+    - Each request works independently
+    - Results update correctly each time
+    - No errors or crashes
+
+✅ SUCCESS INDICATOR: Multiple AI requests work smoothly
+
+================================================================================
+PART 5: VERIFY BACKEND LOGS
+================================================================================
+
+Step 1: Check Backend Terminal
+-------------------------------
+Switch to the terminal where the backend server is running.
+
+Expected Log Output:
+    [2025-10-02T14:30:15.123Z] POST /api/schedule/suggest
+    [2025-10-02T14:30:45.456Z] POST /api/ritual/generate
+    [2025-10-02T14:31:10.789Z] POST /api/schedule/suggest
+
+✅ SUCCESS INDICATOR: Backend logs show API requests being received
+
+Step 2: Verify No Errors
+-------------------------
+Check that there are no error messages in the backend logs.
+
+✅ SUCCESS INDICATOR: No errors in backend logs
+
+================================================================================
+PART 6: TEST ERROR HANDLING
+================================================================================
+
+Step 1: Test Backend Offline Scenario
+--------------------------------------
+1. Stop the backend server (Ctrl+C in terminal)
+2. In the extension, click "Find Focus Time"
+
+Expected Result:
+    ┌─────────────────────────────────────────┐
+    │ ⚠️ Error                                │
+    │                                         │
+    │ Failed to find focus time: Failed to    │
+    │ fetch                                   │
+    │                                         │
+    │ Make sure the backend server is running │
+    │ at http://localhost:3000                │
+    └─────────────────────────────────────────┘
+
+✅ SUCCESS INDICATOR: Error is handled gracefully with helpful message
+
+Step 2: Restart Backend and Verify Recovery
+--------------------------------------------
+1. Restart the backend server: npm start
+2. Wait for server to fully start
+3. Click "Find Focus Time" again
+
+Expected Result:
+    - Request succeeds
+    - Focus time result is displayed
+
+✅ SUCCESS INDICATOR: System recovers after backend restart
+
+================================================================================
+PART 7: TEST BROWSER CONSOLE (OPTIONAL DEBUGGING)
+================================================================================
+
+Step 1: Open Extension Console
+-------------------------------
+1. Right-click the extension icon
+2. Select "Inspect popup"
+3. DevTools opens with Console tab
+
+Step 2: Check for Errors
+-------------------------
+Look for any red error messages in the console.
+
+Expected Output (normal):
+    AuraFlow Calendar popup loaded
+    User is authenticated, loading events
+    Events loaded successfully: [...]
+    Find Focus Time clicked
+    Scheduling API response: {...}
+
+✅ SUCCESS INDICATOR: No errors in console
+
+Step 3: Open Backend Service Worker Console (Optional)
+-------------------------------------------------------
+1. Go to chrome://extensions/
+2. Find AuraFlow Calendar extension
+3. Click "service worker" link
+4. Check console for any errors
+
+✅ SUCCESS INDICATOR: No errors in service worker console
+
+================================================================================
+PART 8: TEST DIFFERENT CALENDAR SCENARIOS
+================================================================================
+
+Scenario 1: Busy Calendar (5+ events today)
+--------------------------------------------
+Expected Ritual: "Gentle Recovery Session" with longer breaks
+
+Scenario 2: Clear Calendar (0-2 events today)
+----------------------------------------------
+Expected Focus Time: Multiple long windows available
+Expected Ritual: "Creative Deep Work" or "Balanced Flow"
+
+Scenario 3: Morning vs Afternoon vs Evening
+--------------------------------------------
+Test at different times of day:
+    - Morning (6 AM - 12 PM): Should prefer morning slots
+    - Afternoon (12 PM - 5 PM): Should prefer afternoon slots
+    - Evening (5 PM - 9 PM): Should prefer evening slots
+
+✅ SUCCESS INDICATOR: AI adapts to different calendar scenarios
+
+================================================================================
+TROUBLESHOOTING
+================================================================================
+
+Problem: Extension shows "OAuth client ID not configured"
+Solution: 
+    - Verify manifest.json has correct client_id
+    - Reload extension in chrome://extensions/
+
+Problem: Backend server won't start
+Solution:
+    - Check if port 3000 is already in use
+    - Verify .env file exists and is configured
+    - Run: npm install
+
+Problem: "CORS error" in extension console
+Solution:
+    - Verify backend server is running
+    - Check that CORS middleware is configured in src/app.js
+    - Restart backend server
+
+Problem: Calendar events don't load
+Solution:
+    - Check Google Calendar API is enabled
+    - Verify OAuth consent screen is configured
+    - Try logging out and back in
+
+Problem: AI features show "Failed to fetch"
+Solution:
+    - Verify backend server is running on port 3000
+    - Check backend terminal for errors
+    - Verify BACKEND_API_URL in popup.js is correct
+
+Problem: AI results don't display
+Solution:
+    - Open extension console (right-click icon → Inspect popup)
+    - Check for JavaScript errors
+    - Verify backend is returning correct JSON format
+
+================================================================================
+SUCCESS CRITERIA CHECKLIST
+================================================================================
+
+Core Functionality:
+[ ] Backend server starts without errors
+[ ] Chrome extension loads without errors
+[ ] Google Calendar authentication works
+[ ] Calendar events display correctly
+[ ] Refresh functionality works
+
+AI Integration:
+[ ] "Find Focus Time" button works
+[ ] Backend scheduling API responds
+[ ] Focus time result displays in UI
+[ ] "Generate Ritual" button works
+[ ] Backend ritual API responds
+[ ] Ritual details display in UI
+
+Error Handling:
+[ ] Graceful error when backend is offline
+[ ] System recovers when backend restarts
+[ ] No console errors during normal operation
+
+End-to-End Flow:
+[ ] User can authenticate → see events → use AI features
+[ ] Multiple AI requests work consecutively
+[ ] Results update correctly each time
+
+================================================================================
+FINAL VERIFICATION
+================================================================================
+
+If all checkboxes above are checked, the integration is SUCCESSFUL! 🎉
+
+The system demonstrates:
+✓ Chrome Extension successfully fetches calendar events
+✓ Chrome Extension successfully calls backend AI APIs
+✓ Backend AI services process requests and return results
+✓ Chrome Extension displays AI results in user-friendly format
+✓ Error handling works gracefully
+✓ Complete end-to-end data flow is functional
+
+================================================================================
+NEXT STEPS
+================================================================================
+
+After successful testing:
+1. Review code for any improvements
+2. Add additional error handling if needed
+3. Consider adding more AI features
+4. Update documentation with screenshots
+5. Prepare for deployment/demo
+
+================================================================================
+SUPPORT
+================================================================================
+
+If you encounter issues not covered in this guide:
+1. Check backend terminal for error messages
+2. Check extension console for JavaScript errors
+3. Verify all prerequisites are met
+4. Review the integration plan document
+5. Check that all files were modified correctly
+
+================================================================================

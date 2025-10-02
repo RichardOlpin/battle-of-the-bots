@@ -59,6 +59,19 @@ function setupEventListeners() {
         retryBtn.addEventListener('click', handleRetry);
         retryBtn.addEventListener('keydown', (e) => handleButtonKeydown(e, handleRetry));
     }
+
+    // AI Feature buttons
+    const findFocusBtn = document.getElementById('find-focus-btn');
+    if (findFocusBtn) {
+        findFocusBtn.addEventListener('click', handleFindFocusTime);
+        findFocusBtn.addEventListener('keydown', (e) => handleButtonKeydown(e, handleFindFocusTime));
+    }
+
+    const generateRitualBtn = document.getElementById('generate-ritual-btn');
+    if (generateRitualBtn) {
+        generateRitualBtn.addEventListener('click', handleGenerateRitual);
+        generateRitualBtn.addEventListener('keydown', (e) => handleButtonKeydown(e, handleGenerateRitual));
+    }
 }
 
 // Handle keyboard events for buttons (Enter and Space)
@@ -669,4 +682,477 @@ function setupMessageListener() {
             }
         }
     });
+}
+
+// ============================================================================
+// AI FEATURES INTEGRATION
+// ============================================================================
+
+// Backend API configuration
+const BACKEND_API_URL = 'http://localhost:3000';
+
+// Store current events for AI features
+let currentEvents = [];
+
+/**
+ * Handle Find Focus Time button click
+ * Fetches calendar events and calls backend scheduling API
+ */
+async function handleFindFocusTime() {
+    console.log('Find Focus Time clicked');
+    
+    try {
+        // Show loading state
+        showAILoading('Finding optimal focus time...');
+        
+        // Get current calendar events with timeout
+        const response = await Promise.race([
+            sendMessageToServiceWorker({ action: 'fetchEvents' }),
+            new Promise((_, reject) => setTimeout(() => reject(new Error('Request timeout')), 10000))
+        ]);
+        
+        if (!response || !response.success) {
+            throw new Error(response?.error || 'Failed to fetch calendar events');
+        }
+        
+        const events = Array.isArray(response.data) ? response.data : [];
+        currentEvents = events;
+        
+        // Transform and validate events
+        const calendarEvents = events
+            .filter(event => event && event.start && event.end)
+            .map(event => {
+                try {
+                    return {
+                        id: event.id || `event-${Date.now()}`,
+                        startTime: event.start.dateTime || event.start.date,
+                        endTime: event.end.dateTime || event.end.date,
+                        title: (event.summary || 'Untitled Event').substring(0, 200) // Limit title length
+                    };
+                } catch (err) {
+                    console.warn('Skipping invalid event:', err);
+                    return null;
+                }
+            })
+            .filter(event => event !== null);
+        
+        // Determine time of day for preferences
+        const now = new Date();
+        const hour = now.getHours();
+        let preferredTime = 'afternoon';
+        if (hour >= 6 && hour < 12) {
+            preferredTime = 'morning';
+        } else if (hour >= 17 && hour < 21) {
+            preferredTime = 'evening';
+        }
+        
+        // Call backend scheduling API with timeout
+        const focusWindow = await Promise.race([
+            callSchedulingAPI(calendarEvents, {
+                preferredTime: preferredTime,
+                minimumDuration: 75,
+                bufferTime: 15
+            }),
+            new Promise((_, reject) => setTimeout(() => reject(new Error('Backend timeout')), 15000))
+        ]);
+        
+        // Validate response
+        if (focusWindow && typeof focusWindow === 'object') {
+            displayFocusTimeResult(focusWindow);
+        } else {
+            displayFocusTimeResult(null);
+        }
+        
+    } catch (error) {
+        console.error('Find Focus Time error:', error);
+        let errorMessage = 'Failed to find focus time';
+        
+        if (error.message.includes('timeout')) {
+            errorMessage = 'Request timed out. Please check your connection and try again.';
+        } else if (error.message.includes('fetch')) {
+            errorMessage = 'Network error. Please ensure the backend server is running.';
+        } else if (error.message) {
+            errorMessage = `Failed to find focus time: ${error.message}`;
+        }
+        
+        showAIError(errorMessage);
+    }
+}
+
+/**
+ * Handle Generate Ritual button click
+ * Analyzes calendar and calls backend ritual generation API
+ */
+async function handleGenerateRitual() {
+    console.log('Generate Ritual clicked');
+    
+    try {
+        // Show loading state
+        showAILoading('Generating personalized ritual...');
+        
+        // Get current calendar events if not already loaded
+        if (!Array.isArray(currentEvents) || currentEvents.length === 0) {
+            try {
+                const response = await Promise.race([
+                    sendMessageToServiceWorker({ action: 'fetchEvents' }),
+                    new Promise((_, reject) => setTimeout(() => reject(new Error('Fetch timeout')), 10000))
+                ]);
+                
+                if (response && response.success && Array.isArray(response.data)) {
+                    currentEvents = response.data;
+                } else {
+                    currentEvents = [];
+                }
+            } catch (err) {
+                console.warn('Could not fetch events, using empty array:', err);
+                currentEvents = [];
+            }
+        }
+        
+        // Determine context from calendar
+        const now = new Date();
+        const hour = now.getHours();
+        
+        let timeOfDay = 'afternoon';
+        if (hour >= 6 && hour < 12) {
+            timeOfDay = 'morning';
+        } else if (hour >= 17 && hour < 21) {
+            timeOfDay = 'evening';
+        }
+        
+        // Calculate calendar density safely
+        const eventsToday = Array.isArray(currentEvents) ? currentEvents.length : 0;
+        let calendarDensity = 'clear';
+        if (eventsToday >= 5) {
+            calendarDensity = 'busy';
+        } else if (eventsToday >= 3) {
+            calendarDensity = 'moderate';
+        }
+        
+        // Get next event title for context
+        let calendarEventTitle = 'Focus session';
+        if (Array.isArray(currentEvents) && currentEvents.length > 0) {
+            try {
+                const nextEvent = currentEvents.find(event => {
+                    if (!event || !event.start) return false;
+                    try {
+                        const eventTime = new Date(event.start.dateTime || event.start.date);
+                        return !isNaN(eventTime.getTime()) && eventTime > now;
+                    } catch (err) {
+                        return false;
+                    }
+                });
+                
+                if (nextEvent && nextEvent.summary) {
+                    // Sanitize and limit title length
+                    calendarEventTitle = String(nextEvent.summary).substring(0, 200);
+                }
+            } catch (err) {
+                console.warn('Error finding next event:', err);
+            }
+        }
+        
+        // Call backend ritual generation API with timeout
+        const ritual = await Promise.race([
+            callRitualAPI({
+                calendarEventTitle: calendarEventTitle,
+                timeOfDay: timeOfDay,
+                calendarDensity: calendarDensity
+            }),
+            new Promise((_, reject) => setTimeout(() => reject(new Error('Backend timeout')), 15000))
+        ]);
+        
+        // Validate ritual response
+        if (ritual && typeof ritual === 'object' && ritual.name) {
+            displayRitualResult(ritual);
+        } else {
+            throw new Error('Invalid ritual response from server');
+        }
+        
+    } catch (error) {
+        console.error('Generate Ritual error:', error);
+        let errorMessage = 'Failed to generate ritual';
+        
+        if (error.message.includes('timeout')) {
+            errorMessage = 'Request timed out. Please check your connection and try again.';
+        } else if (error.message.includes('fetch')) {
+            errorMessage = 'Network error. Please ensure the backend server is running.';
+        } else if (error.message) {
+            errorMessage = `Failed to generate ritual: ${error.message}`;
+        }
+        
+        showAIError(errorMessage);
+    }
+}
+
+/**
+ * Call backend scheduling API
+ * @param {Array} calendarEvents - Array of calendar events
+ * @param {Object} userPreferences - User preferences for scheduling
+ * @returns {Promise<Object>} Focus window suggestion
+ */
+async function callSchedulingAPI(calendarEvents, userPreferences) {
+    // Validate inputs
+    if (!Array.isArray(calendarEvents)) {
+        throw new Error('Invalid calendar events data');
+    }
+    
+    if (!userPreferences || typeof userPreferences !== 'object') {
+        throw new Error('Invalid user preferences');
+    }
+    
+    try {
+        const response = await fetch(`${BACKEND_API_URL}/api/schedule/suggest`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json'
+            },
+            body: JSON.stringify({
+                calendarEvents: calendarEvents,
+                userPreferences: userPreferences
+            }),
+            signal: AbortSignal.timeout(15000) // 15 second timeout
+        });
+        
+        if (!response.ok) {
+            let errorMessage = 'Scheduling API request failed';
+            try {
+                const errorData = await response.json();
+                errorMessage = errorData.error?.message || errorMessage;
+            } catch (parseError) {
+                errorMessage = `Server error: ${response.status} ${response.statusText}`;
+            }
+            throw new Error(errorMessage);
+        }
+        
+        const data = await response.json();
+        
+        // Validate response structure
+        if (data === null) {
+            return null; // No focus window found
+        }
+        
+        if (typeof data !== 'object') {
+            throw new Error('Invalid response format from server');
+        }
+        
+        return data;
+        
+    } catch (error) {
+        console.error('Scheduling API error:', error);
+        
+        if (error.name === 'AbortError') {
+            throw new Error('Request timeout - server took too long to respond');
+        }
+        
+        if (error.message.includes('Failed to fetch')) {
+            throw new Error('Network error - cannot reach backend server');
+        }
+        
+        throw error;
+    }
+}
+
+/**
+ * Call backend ritual generation API
+ * @param {Object} context - Context for ritual generation
+ * @returns {Promise<Object>} Generated ritual
+ */
+async function callRitualAPI(context) {
+    // Validate input
+    if (!context || typeof context !== 'object') {
+        throw new Error('Invalid context data');
+    }
+    
+    try {
+        const response = await fetch(`${BACKEND_API_URL}/api/ritual/generate`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json'
+            },
+            body: JSON.stringify({ context: context }),
+            signal: AbortSignal.timeout(15000) // 15 second timeout
+        });
+        
+        if (!response.ok) {
+            let errorMessage = 'Ritual API request failed';
+            try {
+                const errorData = await response.json();
+                errorMessage = errorData.error?.message || errorMessage;
+            } catch (parseError) {
+                errorMessage = `Server error: ${response.status} ${response.statusText}`;
+            }
+            throw new Error(errorMessage);
+        }
+        
+        const data = await response.json();
+        
+        // Validate response structure
+        if (!data || typeof data !== 'object') {
+            throw new Error('Invalid response format from server');
+        }
+        
+        // Validate required ritual properties
+        const requiredProps = ['name', 'workDuration', 'breakDuration', 'mindfulnessBreaks', 'description'];
+        for (const prop of requiredProps) {
+            if (!(prop in data)) {
+                throw new Error(`Missing required property: ${prop}`);
+            }
+        }
+        
+        return data;
+        
+    } catch (error) {
+        console.error('Ritual API error:', error);
+        
+        if (error.name === 'AbortError') {
+            throw new Error('Request timeout - server took too long to respond');
+        }
+        
+        if (error.message.includes('Failed to fetch')) {
+            throw new Error('Network error - cannot reach backend server');
+        }
+        
+        throw error;
+    }
+}
+
+/**
+ * Display focus time result in UI
+ * @param {Object} result - Focus window from backend
+ */
+function displayFocusTimeResult(result) {
+    const aiResults = document.getElementById('ai-results');
+    if (!aiResults) return;
+    
+    // Check if no focus window found
+    if (!result || !result.startTime) {
+        aiResults.innerHTML = `
+            <div class="ai-result-card">
+                <div class="ai-result-title">🎯 Focus Time Suggestion</div>
+                <div class="ai-result-content">
+                    <p>No suitable focus windows found in your calendar today. Your schedule is quite full!</p>
+                    <p style="margin-top: 8px;">Consider blocking time tomorrow or finding a shorter 30-minute slot for a quick focus session.</p>
+                </div>
+            </div>
+        `;
+        aiResults.classList.remove('hidden');
+        return;
+    }
+    
+    // Format times for display
+    const startTime = new Date(result.startTime);
+    const endTime = new Date(result.endTime);
+    
+    const timeFormat = {
+        hour: 'numeric',
+        minute: '2-digit',
+        hour12: true
+    };
+    
+    const startTimeStr = startTime.toLocaleTimeString('en-US', timeFormat);
+    const endTimeStr = endTime.toLocaleTimeString('en-US', timeFormat);
+    
+    aiResults.innerHTML = `
+        <div class="ai-result-card">
+            <div class="ai-result-title">🎯 Optimal Focus Window Found</div>
+            <div class="ai-result-time">${startTimeStr} - ${endTimeStr}</div>
+            <div class="ai-result-content">
+                <div class="ai-result-detail">
+                    <span class="ai-result-label">Duration:</span>
+                    <span class="ai-result-value">${result.duration} minutes</span>
+                </div>
+                <div class="ai-result-detail">
+                    <span class="ai-result-label">Quality Score:</span>
+                    <span class="ai-result-value">${Math.round(result.score)}/100</span>
+                </div>
+                ${result.reasoning ? `
+                    <div class="ai-result-description">${escapeHtml(result.reasoning)}</div>
+                ` : ''}
+            </div>
+        </div>
+    `;
+    
+    aiResults.classList.remove('hidden');
+    announceToScreenReader(`Optimal focus window found from ${startTimeStr} to ${endTimeStr}`);
+}
+
+/**
+ * Display ritual result in UI
+ * @param {Object} ritual - Generated ritual from backend
+ */
+function displayRitualResult(ritual) {
+    const aiResults = document.getElementById('ai-results');
+    if (!aiResults) return;
+    
+    aiResults.innerHTML = `
+        <div class="ai-result-card">
+            <div class="ai-result-title">✨ ${escapeHtml(ritual.name)}</div>
+            <div class="ai-result-content">
+                <div class="ai-result-detail">
+                    <span class="ai-result-label">Work Duration:</span>
+                    <span class="ai-result-value">${ritual.workDuration} minutes</span>
+                </div>
+                <div class="ai-result-detail">
+                    <span class="ai-result-label">Break Duration:</span>
+                    <span class="ai-result-value">${ritual.breakDuration} minutes</span>
+                </div>
+                <div class="ai-result-detail">
+                    <span class="ai-result-label">Mindfulness Breaks:</span>
+                    <span class="ai-result-value">${ritual.mindfulnessBreaks ? 'Yes' : 'No'}</span>
+                </div>
+                ${ritual.description ? `
+                    <div class="ai-result-description">${escapeHtml(ritual.description)}</div>
+                ` : ''}
+                ${ritual.suggestedSoundscape ? `
+                    <div class="ai-result-detail" style="margin-top: 8px;">
+                        <span class="ai-result-label">Soundscape:</span>
+                        <span class="ai-result-value">${escapeHtml(ritual.suggestedSoundscape)}</span>
+                    </div>
+                ` : ''}
+            </div>
+        </div>
+    `;
+    
+    aiResults.classList.remove('hidden');
+    announceToScreenReader(`Ritual generated: ${ritual.name}`);
+}
+
+/**
+ * Show AI loading state
+ * @param {string} message - Loading message
+ */
+function showAILoading(message) {
+    const aiResults = document.getElementById('ai-results');
+    if (!aiResults) return;
+    
+    aiResults.innerHTML = `
+        <div class="ai-loading">
+            <div class="spinner" style="width: 24px; height: 24px; margin: 0 auto 8px;"></div>
+            <p>${escapeHtml(message)}</p>
+        </div>
+    `;
+    aiResults.classList.remove('hidden');
+}
+
+/**
+ * Show AI error state
+ * @param {string} message - Error message
+ */
+function showAIError(message) {
+    const aiResults = document.getElementById('ai-results');
+    if (!aiResults) return;
+    
+    aiResults.innerHTML = `
+        <div class="ai-result-card ai-error">
+            <div class="ai-result-title">⚠️ Error</div>
+            <div class="ai-result-content">
+                <p>${escapeHtml(message)}</p>
+                <p style="margin-top: 8px; font-size: 11px;">Make sure the backend server is running at ${BACKEND_API_URL}</p>
+            </div>
+        </div>
+    `;
+    aiResults.classList.remove('hidden');
 }
