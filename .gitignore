@@ -2,7 +2,6 @@
 auraflow-extension/private-key.pem
 
 # Environment variables
-battle-of-the-bots/.env
 
 # OS generated files
 .DS_Store
