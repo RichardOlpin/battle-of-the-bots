@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="stylesheet" href="popup.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <title>AuraFlow Test View</title>
+    <style>
+        /* Mock Chrome API for testing */
+        .chrome-api-mock {
+            display: none;
+        }
+        
+        /* Test container to show multiple views */
+        .test-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 20px;
+            padding: 20px;
+            background: #f5f5f5;
+            min-height: 100vh;
+            justify-content: center;
+        }
+        
+        .test-view {
+            position: relative;
+        }
+        
+        .test-label {
+            position: absolute;
+            top: -30px;
+            left: 0;
+            right: 0;
+            text-align: center;
+            font-weight: 600;
+            color: #333;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="test-container">
+        <!-- Events View -->
+        <div class="test-view">
+            <div class="test-label">Events View</div>
+            <div class="background-gradient"></div>
+            <div id="app" role="main">
+                <div class="app-header">
+                    <div class="logo-small">A</div>
+                    <h1>AuraFlow</h1>
+                </div>
+                
+                <div id="events-screen" class="screen">
+                    <div class="header">
+                        <h3 id="date-header">Today's Events - Thursday, October 2, 2025</h3>
+                        <div class="header-buttons">
+                            <button id="refresh-btn" class="icon-btn" aria-label="Refresh events" title="Refresh events" tabindex="0">
+                                <span class="btn-icon">↻</span>
+                            </button>
+                            <button id="logout-btn" class="secondary-btn" aria-label="Logout from Google Calendar" tabindex="0">
+                                Logout
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <!-- Theme Switcher -->
+                    <div class="theme-switcher">
+                        <h4>Theme</h4>
+                        <div class="theme-buttons">
+                            <button id="theme-light-button" class="theme-button theme-light-preview active" aria-label="Light theme">
+                                <span class="sr-only">Light Theme</span>
+                            </button>
+                            <button id="theme-dark-button" class="theme-button theme-dark-preview" aria-label="Dark theme">
+                                <span class="sr-only">Dark Theme</span>
+                            </button>
+                            <button id="theme-calm-button" class="theme-button theme-calm-preview" aria-label="Calm theme">
+                                <span class="sr-only">Calm Theme</span>
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div id="events-container" role="list" aria-label="Today's calendar events">
+                        <div class="event-item">
+                            <div class="event-title">Team Standup</div>
+                            <div class="event-time">9:00 AM - 9:30 AM</div>
+                        </div>
+                        <div class="event-item">
+                            <div class="event-title">Project Review Meeting</div>
+                            <div class="event-time">2:00 PM - 3:00 PM</div>
+                        </div>
+                        <div class="event-item">
+                            <div class="event-title">Client Call</div>
+                            <div class="event-time">4:30 PM - 5:30 PM</div>
+                        </div>
+                    </div>
+                    
+                    <!-- AI Features Section -->
+                    <div id="ai-features" class="ai-features-section">
+                        <h4>AI-Powered Features</h4>
+                        <div class="ai-buttons">
+                            <button id="find-focus-btn" class="ai-btn" aria-label="Find optimal focus time" tabindex="0">
+                                <span class="btn-icon">🎯</span>
+                                Find Focus Time
+                            </button>
+                            <button id="generate-ritual-btn" class="ai-btn" aria-label="Generate personalized ritual" tabindex="0">
+                                <span class="btn-icon">✨</span>
+                                Generate Ritual
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <!-- Quick Start Section -->
+                    <div class="quick-start-section">
+                        <button id="quick-start-button" class="primary-btn quick-start-btn" aria-label="Start session with previous settings">
+                            <span class="quick-start-icon">⚡</span>
+                            <span class="quick-start-text">Quick Start</span>
+                        </button>
+                        <p id="quick-start-description" class="quick-start-description">Start 'Deep Work' Session</p>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Add a subtle background animation -->
+            <div class="background-shapes">
+                <div class="shape shape-1"></div>
+                <div class="shape shape-2"></div>
+                <div class="shape shape-3"></div>
+                <div class="shape shape-4"></div>
+            </div>
+        </div>
+        
+        <!-- No Events View -->
+        <div class="test-view">
+            <div class="test-label">No Events View</div>
+            <div class="background-gradient"></div>
+            <div id="app" role="main">
+                <div class="app-header">
+                    <div class="logo-small">A</div>
+                    <h1>AuraFlow</h1>
+                </div>
+                
+                <div id="events-screen" class="screen">
+                    <div class="header">
+                        <h3 id="date-header">Today's Events - Thursday, October 2, 2025</h3>
+                        <div class="header-buttons">
+                            <button id="refresh-btn" class="icon-btn" aria-label="Refresh events" title="Refresh events" tabindex="0">
+                                <span class="btn-icon">↻</span>
+                            </button>
+                            <button id="logout-btn" class="secondary-btn" aria-label="Logout from Google Calendar" tabindex="0">
+                                Logout
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <!-- Theme Switcher -->
+                    <div class="theme-switcher">
+                        <h4>Theme</h4>
+                        <div class="theme-buttons">
+                            <button id="theme-light-button" class="theme-button theme-light-preview active" aria-label="Light theme">
+                                <span class="sr-only">Light Theme</span>
+                            </button>
+                            <button id="theme-dark-button" class="theme-button theme-dark-preview" aria-label="Dark theme">
+                                <span class="sr-only">Dark Theme</span>
+                            </button>
+                            <button id="theme-calm-button" class="theme-button theme-calm-preview" aria-label="Calm theme">
+                                <span class="sr-only">Calm Theme</span>
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div id="no-events" role="status" aria-live="polite">
+                        <p>No events today</p>
+                    </div>
+                    
+                    <!-- AI Features Section -->
+                    <div id="ai-features" class="ai-features-section">
+                        <h4>AI-Powered Features</h4>
+                        <div class="ai-buttons">
+                            <button id="find-focus-btn" class="ai-btn" aria-label="Find optimal focus time" tabindex="0">
+                                <span class="btn-icon">🎯</span>
+                                Find Focus Time
+                            </button>
+                            <button id="generate-ritual-btn" class="ai-btn" aria-label="Generate personalized ritual" tabindex="0">
+                                <span class="btn-icon">✨</span>
+                                Generate Ritual
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <!-- Quick Start Section -->
+                    <div class="quick-start-section">
+                        <button id="quick-start-button" class="primary-btn quick-start-btn" aria-label="Start session with previous settings">
+                            <span class="quick-start-icon">⚡</span>
+                            <span class="quick-start-text">Quick Start</span>
+                        </button>
+                        <p id="quick-start-description" class="quick-start-description">Start 'Deep Work' Session</p>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Add a subtle background animation -->
+            <div class="background-shapes">
+                <div class="shape shape-1"></div>
+                <div class="shape shape-2"></div>
+                <div class="shape shape-3"></div>
+                <div class="shape shape-4"></div>
+            </div>
+        </div>
+        
+        <!-- Session View -->
+        <div class="test-view">
+            <div class="test-label">Session View</div>
+            <div class="background-gradient"></div>
+            <div id="app" role="main">
+                <div class="app-header">
+                    <div class="logo-small">A</div>
+                    <h1>AuraFlow</h1>
+                </div>
+                
+                <!-- Session Screen (Focus Mode) -->
+                <div id="session-screen" class="screen">
+                    <div class="session-container mouse-active">
+                        <div class="timer-display" id="timer-display">25:00</div>
+                        
+                        <div class="session-controls">
+                            <div class="control-group">
+                                <label for="volume-slider">Volume</label>
+                                <input type="range" id="volume-slider" min="0" max="100" value="50" class="volume-slider" aria-label="Volume control">
+                            </div>
+                            
+                            <div class="control-group">
+                                <label for="soundscape-selector">Soundscape</label>
+                                <select id="soundscape-selector" class="soundscape-selector" aria-label="Select soundscape">
+                                    <option value="rain">Rain</option>
+                                    <option value="forest">Forest</option>
+                                    <option value="cafe">Café</option>
+                                    <option value="waves">Ocean Waves</option>
+                                    <option value="white-noise">White Noise</option>
+                                </select>
+                            </div>
+                            
+                            <div class="button-group">
+                                <button id="pause-btn" class="session-btn" aria-label="Pause session">Pause</button>
+                                <button id="stop-btn" class="session-btn" aria-label="Stop session">Stop</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Add a subtle background animation -->
+            <div class="background-shapes">
+                <div class="shape shape-1"></div>
+                <div class="shape shape-2"></div>
+                <div class="shape shape-3"></div>
+                <div class="shape shape-4"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Mock Chrome API for testing -->
+    <script>
+        // Mock Chrome API
+        window.chrome = {
+            storage: {
+                sync: {
+                    get: function(key, callback) {
+                        callback({});
+                    },
+                    set: function(obj, callback) {
+                        if (callback) callback();
+                    }
+                }
+            },
+            runtime: {
+                sendMessage: function(message, callback) {
+                    if (callback) callback({success: true});
+                },
+                lastError: null
+            }
+        };
+        
+        // Add active class to theme buttons on click
+        document.querySelectorAll('.theme-button').forEach(button => {
+            button.addEventListener('click', function() {
+                document.querySelectorAll('.theme-button').forEach(btn => {
+                    btn.classList.remove('active');
+                });
+                this.classList.add('active');
+            });
+        });
+    </script>
+</body>
+
+</html>

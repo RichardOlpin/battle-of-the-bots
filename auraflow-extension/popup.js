@@ -6,6 +6,10 @@ let currentScreen = 'auth';
 let isLoading = false;
 let retryAttempts = 0;
 const MAX_RETRY_ATTEMPTS = 3;
+let mouseActivityTimer;
+const MOUSE_INACTIVE_DELAY = 3000; // 3 seconds
+let currentTheme = 'light'; // Default theme
+let lastSessionSettings = null;
 
 document.addEventListener('DOMContentLoaded', function () {
     console.log('AuraFlow Calendar popup loaded');
@@ -21,6 +25,15 @@ document.addEventListener('DOMContentLoaded', function () {
 
     // Set up message listener for testing
     setupMessageListener();
+    
+    // Initialize theme system
+    initializeTheme();
+    
+    // Initialize Quick Start feature
+    initializeQuickStart();
+    
+    // Set up session event listeners
+    setupSessionEventListeners();
 });
 
 async function initializePopup() {
@@ -29,6 +42,9 @@ async function initializePopup() {
 
     // Check authentication status on popup load
     await checkAuthenticationStatus();
+    
+    // Load blocked sites list
+    await loadBlockedSites();
 }
 
 function setupEventListeners() {
@@ -71,6 +87,29 @@ function setupEventListeners() {
     if (generateRitualBtn) {
         generateRitualBtn.addEventListener('click', handleGenerateRitual);
         generateRitualBtn.addEventListener('keydown', (e) => handleButtonKeydown(e, handleGenerateRitual));
+    }
+    
+    // Theme buttons are now directly in the main interface
+    
+    // Quick Start button
+    const quickStartBtn = document.getElementById('quick-start-button');
+    if (quickStartBtn) {
+        quickStartBtn.addEventListener('click', handleQuickStart);
+        quickStartBtn.addEventListener('keydown', (e) => handleButtonKeydown(e, handleQuickStart));
+    }
+    
+    // Quick Focus button
+    const quickFocusBtn = document.getElementById('quick-focus-btn');
+    if (quickFocusBtn) {
+        quickFocusBtn.addEventListener('click', handleQuickFocus);
+        quickFocusBtn.addEventListener('keydown', (e) => handleButtonKeydown(e, handleQuickFocus));
+    }
+    
+    // Blocked sites save button
+    const saveBlockedSitesBtn = document.getElementById('save-blocked-sites-button');
+    if (saveBlockedSitesBtn) {
+        saveBlockedSitesBtn.addEventListener('click', handleSaveBlockedSites);
+        saveBlockedSitesBtn.addEventListener('keydown', (e) => handleButtonKeydown(e, handleSaveBlockedSites));
     }
 }
 
@@ -136,7 +175,7 @@ function trapFocus(event) {
 
 function showScreen(screenName) {
     // Validate screen name
-    const validScreens = ['auth', 'events', 'loading', 'error'];
+    const validScreens = ['auth', 'events', 'loading', 'error', 'session'];
     if (!validScreens.includes(screenName)) {
         console.error('Invalid screen name:', screenName);
         return;
@@ -188,7 +227,8 @@ function announceScreenChange(screenName) {
         'auth': 'Authentication screen. Please connect your Google Calendar.',
         'events': 'Calendar events loaded.',
         'loading': 'Loading, please wait.',
-        'error': 'An error occurred. Please try again.'
+        'error': 'An error occurred. Please try again.',
+        'session': 'Focus session started. Timer is displayed.'
     };
 
     const message = announcements[screenName] || '';
@@ -700,6 +740,7 @@ let currentEvents = [];
  */
 async function handleFindFocusTime() {
     console.log('Find Focus Time clicked');
+    window.lastAIAction = 'focus'; // Track for retry functionality
     
     try {
         // Show loading state
@@ -785,6 +826,7 @@ async function handleFindFocusTime() {
  */
 async function handleGenerateRitual() {
     console.log('Generate Ritual clicked');
+    window.lastAIAction = 'ritual'; // Track for retry functionality
     
     try {
         // Show loading state
@@ -865,6 +907,16 @@ async function handleGenerateRitual() {
         // Validate ritual response
         if (ritual && typeof ritual === 'object' && ritual.name) {
             displayRitualResult(ritual);
+            
+            // Save ritual for Quick Start
+            saveSessionSettings({
+                ritual: ritual,
+                soundscape: ritual.suggestedSoundscape || 'rain',
+                timestamp: Date.now()
+            });
+            
+            // Update Quick Start button
+            updateQuickStartButton();
         } else {
             throw new Error('Invalid ritual response from server');
         }
@@ -1030,12 +1082,15 @@ function displayFocusTimeResult(result) {
     // Check if no focus window found
     if (!result || !result.startTime) {
         aiResults.innerHTML = `
-            <div class="ai-result-card">
-                <div class="ai-result-title">🎯 Focus Time Suggestion</div>
-                <div class="ai-result-content">
-                    <p>No suitable focus windows found in your calendar today. Your schedule is quite full!</p>
-                    <p style="margin-top: 8px;">Consider blocking time tomorrow or finding a shorter 30-minute slot for a quick focus session.</p>
+            <div class="focus-time-result">
+                <div class="focus-time-header">
+                    <span>🎯</span>
+                    <h5>No Focus Time Available</h5>
                 </div>
+                <div class="focus-reasoning">
+                    No suitable focus windows found in your calendar today. Your schedule is quite full! Consider blocking time tomorrow or finding a shorter 30-minute slot for a quick focus session.
+                </div>
+                <button class="close-results-btn" onclick="hideAIResults()" aria-label="Close results">×</button>
             </div>
         `;
         aiResults.classList.remove('hidden');
@@ -1056,22 +1111,27 @@ function displayFocusTimeResult(result) {
     const endTimeStr = endTime.toLocaleTimeString('en-US', timeFormat);
     
     aiResults.innerHTML = `
-        <div class="ai-result-card">
-            <div class="ai-result-title">🎯 Optimal Focus Window Found</div>
-            <div class="ai-result-time">${startTimeStr} - ${endTimeStr}</div>
-            <div class="ai-result-content">
-                <div class="ai-result-detail">
-                    <span class="ai-result-label">Duration:</span>
-                    <span class="ai-result-value">${result.duration} minutes</span>
-                </div>
-                <div class="ai-result-detail">
-                    <span class="ai-result-label">Quality Score:</span>
-                    <span class="ai-result-value">${Math.round(result.score)}/100</span>
-                </div>
-                ${result.reasoning ? `
-                    <div class="ai-result-description">${escapeHtml(result.reasoning)}</div>
-                ` : ''}
+        <div class="focus-time-result">
+            <div class="focus-time-header">
+                <span>🎯</span>
+                <h5>Optimal Focus Window</h5>
             </div>
+            <div class="focus-time-slot">
+                <div class="focus-time-duration">${result.duration} min</div>
+                <div class="focus-time-period">${startTimeStr} - ${endTimeStr}</div>
+                <div class="focus-score">
+                    <span>Quality Score:</span>
+                    <span class="score-badge">${Math.round(result.score)}/100</span>
+                </div>
+            </div>
+            ${result.reasoning ? `
+                <div class="focus-reasoning">${escapeHtml(result.reasoning)}</div>
+            ` : ''}
+            <button class="start-session-btn" onclick="startFocusSession(${result.duration})">
+                <span>🚀</span>
+                Start Focus Session
+            </button>
+            <button class="close-results-btn" onclick="hideAIResults()" aria-label="Close results">×</button>
         </div>
     `;
     
@@ -1087,32 +1147,57 @@ function displayRitualResult(ritual) {
     const aiResults = document.getElementById('ai-results');
     if (!aiResults) return;
     
+    // Get soundscape icon
+    const soundscapeIcons = {
+        'rain': '🌧️',
+        'forest': '🌲',
+        'cafe': '☕',
+        'waves': '🌊',
+        'ocean': '🌊',
+        'white-noise': '🔊',
+        'nature': '🍃'
+    };
+    
+    const soundscapeIcon = soundscapeIcons[ritual.suggestedSoundscape?.toLowerCase()] || '🎵';
+    
     aiResults.innerHTML = `
-        <div class="ai-result-card">
-            <div class="ai-result-title">✨ ${escapeHtml(ritual.name)}</div>
-            <div class="ai-result-content">
-                <div class="ai-result-detail">
-                    <span class="ai-result-label">Work Duration:</span>
-                    <span class="ai-result-value">${ritual.workDuration} minutes</span>
+        <div class="ritual-result">
+            <div class="ritual-header">
+                <span>✨</span>
+                <h5>Personalized Ritual</h5>
+            </div>
+            <div class="ritual-card">
+                <div class="ritual-name">${escapeHtml(ritual.name)}</div>
+                <div class="ritual-timing">
+                    <div class="timing-item">
+                        <span class="timing-value">${ritual.workDuration}</span>
+                        <span class="timing-label">Work</span>
+                    </div>
+                    <div class="timing-item">
+                        <span class="timing-value">${ritual.breakDuration}</span>
+                        <span class="timing-label">Break</span>
+                    </div>
                 </div>
-                <div class="ai-result-detail">
-                    <span class="ai-result-label">Break Duration:</span>
-                    <span class="ai-result-value">${ritual.breakDuration} minutes</span>
-                </div>
-                <div class="ai-result-detail">
-                    <span class="ai-result-label">Mindfulness Breaks:</span>
-                    <span class="ai-result-value">${ritual.mindfulnessBreaks ? 'Yes' : 'No'}</span>
+                <div class="ritual-features">
+                    ${ritual.mindfulnessBreaks ? '<span class="feature-badge">🧘 Mindful</span>' : ''}
+                    <span class="feature-badge">⚡ Focused</span>
+                    <span class="feature-badge">🎯 Adaptive</span>
                 </div>
                 ${ritual.description ? `
-                    <div class="ai-result-description">${escapeHtml(ritual.description)}</div>
+                    <div class="ritual-description">${escapeHtml(ritual.description)}</div>
                 ` : ''}
                 ${ritual.suggestedSoundscape ? `
-                    <div class="ai-result-detail" style="margin-top: 8px;">
-                        <span class="ai-result-label">Soundscape:</span>
-                        <span class="ai-result-value">${escapeHtml(ritual.suggestedSoundscape)}</span>
+                    <div class="soundscape-suggestion">
+                        <span class="soundscape-icon">${soundscapeIcon}</span>
+                        <span>Recommended: ${escapeHtml(ritual.suggestedSoundscape)}</span>
                     </div>
                 ` : ''}
+                <button class="use-ritual-btn" onclick="useRitual('${escapeHtml(ritual.name)}', ${ritual.workDuration}, ${ritual.breakDuration}, '${ritual.suggestedSoundscape || 'rain'}')">
+                    <span>🚀</span>
+                    Use This Ritual
+                </button>
             </div>
+            <button class="close-results-btn" onclick="hideAIResults()" aria-label="Close results">×</button>
         </div>
     `;
     
@@ -1130,8 +1215,8 @@ function showAILoading(message) {
     
     aiResults.innerHTML = `
         <div class="ai-loading">
-            <div class="spinner" style="width: 24px; height: 24px; margin: 0 auto 8px;"></div>
-            <p>${escapeHtml(message)}</p>
+            <div class="ai-spinner"></div>
+            <div class="ai-loading-text">${escapeHtml(message)}</div>
         </div>
     `;
     aiResults.classList.remove('hidden');
@@ -1146,13 +1231,593 @@ function showAIError(message) {
     if (!aiResults) return;
     
     aiResults.innerHTML = `
-        <div class="ai-result-card ai-error">
-            <div class="ai-result-title">⚠️ Error</div>
-            <div class="ai-result-content">
-                <p>${escapeHtml(message)}</p>
-                <p style="margin-top: 8px; font-size: 11px;">Make sure the backend server is running at ${BACKEND_API_URL}</p>
-            </div>
+        <div class="ai-error">
+            <div class="ai-error-icon">⚠️</div>
+            <div class="ai-error-message">${escapeHtml(message)}</div>
+            <button class="retry-ai-btn" onclick="retryLastAIAction()">
+                <span>🔄</span>
+                Try Again
+            </button>
+            <button class="close-results-btn" onclick="hideAIResults()" aria-label="Close results">×</button>
         </div>
     `;
     aiResults.classList.remove('hidden');
+}
+
+// ============================================================================
+// FOCUS MODE IMPLEMENTATION
+// ============================================================================
+
+// Setup event listeners for session screen
+function setupSessionEventListeners() {
+    const sessionContainer = document.querySelector('.session-container');
+    if (sessionContainer) {
+        // Add mouse movement listener
+        sessionContainer.addEventListener('mousemove', handleMouseActivity);
+        
+        // Add button event listeners
+        const pauseBtn = document.getElementById('pause-btn');
+        const stopBtn = document.getElementById('stop-btn');
+        
+        if (pauseBtn) {
+            pauseBtn.addEventListener('click', handlePauseSession);
+            pauseBtn.addEventListener('keydown', (e) => handleButtonKeydown(e, handlePauseSession));
+        }
+        
+        if (stopBtn) {
+            stopBtn.addEventListener('click', handleStopSession);
+            stopBtn.addEventListener('keydown', (e) => handleButtonKeydown(e, handleStopSession));
+        }
+    }
+}
+
+// Handle mouse activity in session screen
+function handleMouseActivity() {
+    const sessionContainer = document.querySelector('.session-container');
+    if (!sessionContainer) return;
+    
+    // Add active class to show controls
+    sessionContainer.classList.add('mouse-active');
+    
+    // Clear any existing timer
+    clearTimeout(mouseActivityTimer);
+    
+    // Set timer to hide controls after delay
+    mouseActivityTimer = setTimeout(() => {
+        sessionContainer.classList.remove('mouse-active');
+    }, MOUSE_INACTIVE_DELAY);
+}
+
+// Function to show session screen
+function showSessionScreen() {
+    showScreen('session');
+    
+    // Initialize with active controls, then fade out
+    const sessionContainer = document.querySelector('.session-container');
+    if (sessionContainer) {
+        sessionContainer.classList.add('mouse-active');
+        
+        // Set timer to hide controls after delay
+        mouseActivityTimer = setTimeout(() => {
+            sessionContainer.classList.remove('mouse-active');
+        }, MOUSE_INACTIVE_DELAY);
+    }
+}
+
+// Handle pause session button click
+function handlePauseSession() {
+    console.log('Pause session clicked');
+    // Implement pause functionality
+    // For now, just show controls
+    handleMouseActivity();
+}
+
+// Handle stop session button click
+function handleStopSession() {
+    console.log('Stop session clicked');
+    // Return to events screen
+    showScreen('events');
+}
+
+// ============================================================================
+// THEME SYSTEM IMPLEMENTATION
+// ============================================================================
+
+// Initialize theme system
+function initializeTheme() {
+    // Load saved theme from storage
+    chrome.storage.sync.get(['auraflow_theme'], function(result) {
+        if (result.auraflow_theme) {
+            applyTheme(result.auraflow_theme);
+            // Update active state on theme buttons
+            updateThemeButtonStates(result.auraflow_theme);
+        }
+    });
+    
+    // Set up theme button event listeners
+    setupThemeButtons();
+}
+
+// Set up theme button event listeners
+function setupThemeButtons() {
+    const lightBtn = document.getElementById('theme-light-button');
+    const darkBtn = document.getElementById('theme-dark-button');
+    const calmBtn = document.getElementById('theme-calm-button');
+    
+    if (lightBtn) {
+        lightBtn.addEventListener('click', () => switchTheme('light'));
+        lightBtn.addEventListener('keydown', (e) => handleButtonKeydown(e, () => switchTheme('light')));
+    }
+    
+    if (darkBtn) {
+        darkBtn.addEventListener('click', () => switchTheme('dark'));
+        darkBtn.addEventListener('keydown', (e) => handleButtonKeydown(e, () => switchTheme('dark')));
+    }
+    
+    if (calmBtn) {
+        calmBtn.addEventListener('click', () => switchTheme('calm'));
+        calmBtn.addEventListener('keydown', (e) => handleButtonKeydown(e, () => switchTheme('calm')));
+    }
+}
+
+// Switch theme
+function switchTheme(theme) {
+    applyTheme(theme);
+    
+    // Save theme preference
+    chrome.storage.sync.set({ 'auraflow_theme': theme });
+    
+    // Update active state on buttons
+    updateThemeButtonStates(theme);
+    
+    // Announce theme change to screen readers
+    announceToScreenReader(`Theme changed to ${theme}`);
+}
+
+// Apply theme to document
+function applyTheme(theme) {
+    // Remove all theme classes
+    document.body.classList.remove('theme-dark', 'theme-calm');
+    
+    // Add appropriate theme class
+    if (theme === 'dark') {
+        document.body.classList.add('theme-dark');
+    } else if (theme === 'calm') {
+        document.body.classList.add('theme-calm');
+    }
+    
+    currentTheme = theme;
+}
+
+// Update active state on theme buttons
+function updateThemeButtonStates(activeTheme) {
+    const themeButtons = document.querySelectorAll('.theme-button');
+    themeButtons.forEach(button => {
+        button.classList.remove('active');
+    });
+    
+    const activeButton = document.getElementById(`theme-${activeTheme}-button`);
+    if (activeButton) {
+        activeButton.classList.add('active');
+    }
+}
+
+// Update theme button states on initialization
+function updateInitialThemeState() {
+    updateThemeButtonStates(currentTheme);
+}
+
+// ============================================================================
+// QUICK START IMPLEMENTATION
+// ============================================================================
+
+// Initialize Quick Start feature
+function initializeQuickStart() {
+    // Load saved session settings from storage
+    chrome.storage.sync.get(['auraflow_last_session'], function(result) {
+        if (result.auraflow_last_session) {
+            lastSessionSettings = result.auraflow_last_session;
+            updateQuickStartButton();
+        }
+    });
+}
+
+// Update Quick Start button visibility and text
+function updateQuickStartButton() {
+    const quickStartBtn = document.getElementById('quick-start-button');
+    const quickStartDesc = document.getElementById('quick-start-description');
+    
+    if (!quickStartBtn || !quickStartDesc || !lastSessionSettings) return;
+    
+    // Show the Quick Start button
+    quickStartBtn.classList.remove('hidden');
+    quickStartDesc.classList.remove('hidden');
+    
+    // Update description with ritual name
+    if (lastSessionSettings.ritual && lastSessionSettings.ritual.name) {
+        quickStartDesc.textContent = `Start '${lastSessionSettings.ritual.name}' Session`;
+    } else {
+        quickStartDesc.textContent = 'Start Previous Session';
+    }
+}
+
+// Handle Quick Start button click
+function handleQuickStart() {
+    console.log('Quick Start button clicked');
+    
+    if (!lastSessionSettings) {
+        console.error('No previous session settings found');
+        return;
+    }
+    
+    // Start a new session with the saved settings
+    startFocusSession(lastSessionSettings);
+}
+
+// Save session settings when starting a new session
+function saveSessionSettings(settings) {
+    lastSessionSettings = settings;
+    
+    // Save to chrome.storage.sync for persistence
+    chrome.storage.sync.set({ 'auraflow_last_session': settings });
+    
+    console.log('Session settings saved:', settings);
+}
+
+// Start a focus session with the given settings
+function startFocusSession(settings) {
+    console.log('Starting focus session with settings:', settings);
+    
+    // Apply settings to the session
+    if (settings.ritual) {
+        // Set timer duration
+        const timerDisplay = document.getElementById('timer-display');
+        if (timerDisplay && settings.ritual.workDuration) {
+            const minutes = settings.ritual.workDuration;
+            timerDisplay.textContent = `${minutes}:00`;
+        }
+        
+        // Set soundscape if available
+        const soundscapeSelector = document.getElementById('soundscape-selector');
+        if (soundscapeSelector && settings.soundscape) {
+            soundscapeSelector.value = settings.soundscape;
+        }
+    }
+    
+    // Show the session screen
+    showSessionScreen();
+}
+
+// ============================================================================
+// GENTLE NUDGE SESSION CONTROL
+// ============================================================================
+
+/**
+ * Starts a focus session with notifications
+ * @param {number} workDuration - Work duration in minutes
+ * @param {number} breakDuration - Break duration in minutes
+ * @param {string} taskGoal - User's task goal
+ */
+async function startFocusSession(workDuration, breakDuration, taskGoal) {
+  try {
+    // Start the session with notifications
+    const response = await sendMessageToServiceWorker({
+      action: 'startSession',
+      data: {
+        workDuration,
+        breakDuration,
+        taskGoal
+      }
+    });
+    
+    if (response.success) {
+      console.log('Focus session started');
+      
+      // Enable website blocking
+      try {
+        const blockingResponse = await sendMessageToServiceWorker({
+          action: 'startFocus'
+        });
+        if (blockingResponse.success) {
+          console.log('Website blocking enabled');
+        }
+      } catch (blockingError) {
+        console.warn('Failed to enable blocking, but session continues:', blockingError);
+      }
+      
+      // Update UI to show active session
+      showSessionStartedUI(workDuration, breakDuration, taskGoal);
+      announceToScreenReader(`Focus session started: ${workDuration} minutes of work, ${breakDuration} minutes of break`);
+    } else {
+      throw new Error(response.error || 'Failed to start session');
+    }
+  } catch (error) {
+    console.error('Failed to start focus session:', error);
+    showError('Failed to start focus session. Please try again.');
+  }
+}
+
+/**
+ * Ends the current focus session early
+ */
+async function endFocusSession() {
+  try {
+    // End the session
+    const response = await sendMessageToServiceWorker({
+      action: 'endSession'
+    });
+    
+    if (response.success) {
+      console.log('Focus session ended');
+      
+      // Disable website blocking
+      try {
+        const blockingResponse = await sendMessageToServiceWorker({
+          action: 'endFocus'
+        });
+        if (blockingResponse.success) {
+          console.log('Website blocking disabled');
+        }
+      } catch (blockingError) {
+        console.warn('Failed to disable blocking:', blockingError);
+      }
+      
+      // Update UI to show session ended
+      showSessionEndedUI();
+      announceToScreenReader('Focus session ended');
+    } else {
+      throw new Error(response.error || 'Failed to end session');
+    }
+  } catch (error) {
+    console.error('Failed to end focus session:', error);
+    showError('Failed to end focus session. Please try again.');
+  }
+}
+
+/**
+ * Shows UI for active session
+ * @param {number} workDuration - Work duration in minutes
+ * @param {number} breakDuration - Break duration in minutes
+ * @param {string} taskGoal - Task goal
+ */
+function showSessionStartedUI(workDuration, breakDuration, taskGoal) {
+  const aiResults = document.getElementById('ai-results');
+  if (!aiResults) return;
+  
+  const endTime = new Date(Date.now() + workDuration * 60 * 1000);
+  const endTimeStr = endTime.toLocaleTimeString('en-US', { 
+    hour: 'numeric', 
+    minute: '2-digit' 
+  });
+  
+  aiResults.innerHTML = `
+    <div class="ai-result-card" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
+      <div class="ai-result-title" style="color: white;">🎯 Focus Session Active</div>
+      <div class="ai-result-content">
+        <div class="ai-result-detail" style="color: rgba(255,255,255,0.95);">
+          <span class="ai-result-label" style="color: rgba(255,255,255,0.8);">Task:</span>
+          <span class="ai-result-value">${escapeHtml(taskGoal || 'Focus session')}</span>
+        </div>
+        <div class="ai-result-detail" style="color: rgba(255,255,255,0.95);">
+          <span class="ai-result-label" style="color: rgba(255,255,255,0.8);">Work Duration:</span>
+          <span class="ai-result-value">${workDuration} minutes</span>
+        </div>
+        <div class="ai-result-detail" style="color: rgba(255,255,255,0.95);">
+          <span class="ai-result-label" style="color: rgba(255,255,255,0.8);">Break Duration:</span>
+          <span class="ai-result-value">${breakDuration} minutes</span>
+        </div>
+        <div class="ai-result-detail" style="color: rgba(255,255,255,0.95);">
+          <span class="ai-result-label" style="color: rgba(255,255,255,0.8);">Work ends at:</span>
+          <span class="ai-result-value">${endTimeStr}</span>
+        </div>
+        <div style="margin-top: 12px; padding-top: 12px; border-top: 1px solid rgba(255,255,255,0.3);">
+          <p style="font-size: 12px; color: rgba(255,255,255,0.9); margin-bottom: 8px;">
+            You'll receive a notification when it's time for your break. You can close this popup.
+          </p>
+          <button id="end-session-btn" class="btn btn-secondary" style="width: 100%; background: rgba(255,255,255,0.2); border: 1px solid rgba(255,255,255,0.3);">
+            End Session Early
+          </button>
+        </div>
+      </div>
+    </div>
+  `;
+  
+  aiResults.classList.remove('hidden');
+  
+  // Add event listener to end session button
+  const endSessionBtn = document.getElementById('end-session-btn');
+  if (endSessionBtn) {
+    endSessionBtn.addEventListener('click', endFocusSession);
+  }
+}
+
+/**
+ * Shows UI for ended session
+ */
+function showSessionEndedUI() {
+  const aiResults = document.getElementById('ai-results');
+  if (!aiResults) return;
+  
+  aiResults.innerHTML = `
+    <div class="ai-result-card">
+      <div class="ai-result-title">✅ Session Ended</div>
+      <div class="ai-result-content">
+        <p>Your focus session has been ended. Great work!</p>
+      </div>
+    </div>
+  `;
+  
+  aiResults.classList.remove('hidden');
+  
+  // Hide after 3 seconds
+  setTimeout(() => {
+    aiResults.classList.add('hidden');
+  }, 3000);
+}
+
+
+// ============================================================================
+// WEBSITE BLOCKING (DISTRACTION SHIELD)
+// ============================================================================
+
+/**
+ * Loads the blocked sites list from storage and populates the textarea
+ */
+async function loadBlockedSites() {
+  try {
+    const result = await chrome.storage.sync.get(['auraFlowBlockedSites']);
+    const blockedSites = result.auraFlowBlockedSites || [];
+    
+    const textarea = document.getElementById('blocked-sites-list');
+    if (textarea && blockedSites.length > 0) {
+      textarea.value = blockedSites.join('\n');
+    }
+  } catch (error) {
+    console.error('Failed to load blocked sites:', error);
+  }
+}
+
+/**
+ * Handles saving the blocked sites list
+ */
+async function handleSaveBlockedSites() {
+  try {
+    const textarea = document.getElementById('blocked-sites-list');
+    if (!textarea) return;
+    
+    // Get text content and split by newlines
+    const text = textarea.value;
+    const sites = text
+      .split('\n')
+      .map(site => site.trim())
+      .filter(site => site.length > 0); // Remove empty lines
+    
+    // Save to chrome.storage.sync
+    await chrome.storage.sync.set({ auraFlowBlockedSites: sites });
+    
+    console.log('Blocked sites saved:', sites);
+    
+    // Show success feedback
+    showBlockingSaveSuccess();
+    
+    // Announce to screen reader
+    announceToScreenReader(`Saved ${sites.length} blocked sites`);
+  } catch (error) {
+    console.error('Failed to save blocked sites:', error);
+    showError('Failed to save blocked sites. Please try again.');
+  }
+}
+
+/**
+ * Shows success feedback when blocked sites are saved
+ */
+function showBlockingSaveSuccess() {
+  const button = document.getElementById('save-blocked-sites-button');
+  if (!button) return;
+  
+  const originalText = button.innerHTML;
+  button.innerHTML = '<span class="btn-icon">✅</span> Saved!';
+  button.disabled = true;
+  
+  setTimeout(() => {
+    button.innerHTML = originalText;
+    button.disabled = false;
+  }, 2000);
+}
+
+/**
+ * Hide AI results panel
+ */
+function hideAIResults() {
+    const aiResults = document.getElementById('ai-results');
+    if (aiResults) {
+        aiResults.classList.add('hidden');
+        aiResults.innerHTML = '';
+    }
+}
+
+/**
+ * Start focus session with specified duration
+ * @param {number} duration - Session duration in minutes
+ */
+function startFocusSession(duration) {
+    console.log(`Starting focus session for ${duration} minutes`);
+    
+    // Store session settings
+    chrome.storage.local.set({
+        sessionDuration: duration,
+        sessionType: 'focus'
+    });
+    
+    // Switch to session screen
+    showSessionScreen();
+    
+    // Start the timer
+    startTimer(duration);
+    
+    // Hide AI results
+    hideAIResults();
+    
+    announceToScreenReader(`Starting ${duration} minute focus session`);
+}
+
+/**
+ * Use the generated ritual for a session
+ * @param {string} name - Ritual name
+ * @param {number} workDuration - Work duration in minutes
+ * @param {number} breakDuration - Break duration in minutes
+ * @param {string} soundscape - Recommended soundscape
+ */
+function useRitual(name, workDuration, breakDuration, soundscape) {
+    console.log(`Using ritual: ${name}`);
+    
+    // Store ritual settings
+    chrome.storage.local.set({
+        ritualName: name,
+        sessionDuration: workDuration,
+        breakDuration: breakDuration,
+        recommendedSoundscape: soundscape,
+        sessionType: 'ritual'
+    });
+    
+    // Set the soundscape selector if available
+    const soundscapeSelector = document.getElementById('soundscape-selector');
+    if (soundscapeSelector) {
+        soundscapeSelector.value = soundscape;
+    }
+    
+    // Switch to session screen
+    showSessionScreen();
+    
+    // Start the timer
+    startTimer(workDuration);
+    
+    // Hide AI results
+    hideAIResults();
+    
+    announceToScreenReader(`Starting ${name} ritual with ${workDuration} minute work session`);
+}
+
+/**
+ * Retry the last AI action
+ */
+function retryLastAIAction() {
+    // Store the last action type to retry
+    if (window.lastAIAction === 'focus') {
+        handleFindFocusTime();
+    } else if (window.lastAIAction === 'ritual') {
+        handleGenerateRitual();
+    }
+}
+
+/**
+ * Handle Quick Focus button click - starts a standard 25-minute focus session
+ */
+function handleQuickFocus() {
+    console.log('Quick Focus button clicked');
+    
+    // Start a standard 25-minute focus session
+    startFocusSession(25);
+    
+    announceToScreenReader('Starting 25 minute focus session');
 }

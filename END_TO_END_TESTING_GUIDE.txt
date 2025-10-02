@@ -458,3 +458,682 @@ If you encounter issues not covered in this guide:
 5. Check that all files were modified correctly
 
 ================================================================================
+
+================================================================================
+PART 9: PRODUCTION HARDENING TEST CASES
+================================================================================
+
+These test cases verify the production hardening features including edge case
+handling and the Gentle Nudge notification system.
+
+--------------------------------------------------------------------------------
+TEST CASE B3: Scheduling with Overlapping and Malformed Events
+--------------------------------------------------------------------------------
+
+Purpose: Verify that the scheduling service handles overlapping events and
+malformed data gracefully without crashing.
+
+Setup:
+------
+1. Ensure backend server is running
+2. Open browser console (F12)
+3. Navigate to Console tab
+
+Test Steps:
+-----------
+1. In the browser console, paste and run the following code:
+
+```javascript
+fetch('http://localhost:3000/api/schedule/suggest', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({
+    calendarEvents: [
+      // Overlapping events (2-3 PM and 2:30-3:30 PM)
+      { 
+        id: '1',
+        startTime: '2025-10-03T14:00:00Z', 
+        endTime: '2025-10-03T15:00:00Z', 
+        title: 'Meeting 1' 
+      },
+      { 
+        id: '2',
+        startTime: '2025-10-03T14:30:00Z', 
+        endTime: '2025-10-03T15:30:00Z', 
+        title: 'Meeting 2' 
+      },
+      // Malformed event (missing startTime)
+      { 
+        id: '3',
+        endTime: '2025-10-03T16:00:00Z', 
+        title: 'Broken Event' 
+      },
+      // Valid event
+      { 
+        id: '4',
+        startTime: '2025-10-03T17:00:00Z', 
+        endTime: '2025-10-03T18:00:00Z', 
+        title: 'Valid Event' 
+      }
+    ],
+    userPreferences: {
+      preferredTime: 'afternoon',
+      minimumDuration: 75
+    }
+  })
+})
+.then(res => res.json())
+.then(data => console.log('Result:', data))
+.catch(err => console.error('Error:', err));
+```
+
+Expected Behavior:
+------------------
+1. Backend processes the request without crashing
+2. Overlapping events (Meeting 1 and Meeting 2) are merged into single busy block (2:00-3:30 PM)
+3. Malformed event (missing startTime) is ignored
+4. Valid event is processed normally
+5. System suggests a focus time that avoids the merged busy block
+
+Expected Response:
+------------------
+{
+  "startTime": "2025-10-03T...",  // Time outside 2:00-3:30 PM busy block
+  "endTime": "2025-10-03T...",
+  "duration": 75+,
+  "score": 0-100,
+  "reasoning": "..."
+}
+
+✅ SUCCESS INDICATORS:
+- No server crash or 500 error
+- Response includes valid startTime and endTime
+- Suggested time does not overlap with merged busy block (2:00-3:30 PM)
+- Backend logs show no errors
+
+--------------------------------------------------------------------------------
+TEST CASE C3: Ritual Generation with Null Input
+--------------------------------------------------------------------------------
+
+Purpose: Verify that the ritual generation service handles null/undefined
+context gracefully and returns the default balanced ritual.
+
+Setup:
+------
+1. Ensure backend server is running
+2. Open browser console (F12)
+
+Test Steps:
+-----------
+1. Test with null context:
+
+```javascript
+fetch('http://localhost:3000/api/ritual/generate', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({
+    context: null
+  })
+})
+.then(res => res.json())
+.then(data => console.log('Null context result:', data))
+.catch(err => console.error('Error:', err));
+```
+
+2. Test with undefined context (missing context property):
+
+```javascript
+fetch('http://localhost:3000/api/ritual/generate', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({})
+})
+.then(res => res.json())
+.then(data => console.log('Undefined context result:', data))
+.catch(err => console.error('Error:', err));
+```
+
+3. Test with empty string title:
+
+```javascript
+fetch('http://localhost:3000/api/ritual/generate', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({
+    context: {
+      calendarEventTitle: '',
+      timeOfDay: 'afternoon',
+      calendarDensity: 'busy'
+    }
+  })
+})
+.then(res => res.json())
+.then(data => console.log('Empty title result:', data))
+.catch(err => console.error('Error:', err));
+```
+
+Expected Behavior:
+------------------
+1. All requests complete successfully without errors
+2. Null/undefined context returns default "Balanced Flow" ritual
+3. Empty title falls back to density/time logic (should return "Gentle Recovery Session" for busy afternoon)
+
+Expected Response Structure:
+-----------------------------
+{
+  "name": "Balanced Flow" (or appropriate ritual),
+  "workDuration": 45,
+  "breakDuration": 10,
+  "mindfulnessBreaks": true,
+  "description": "...",
+  "suggestedSoundscape": "..."
+}
+
+✅ SUCCESS INDICATORS:
+- No server crash or 500 error
+- All responses include complete ritual object
+- All required properties present (name, workDuration, breakDuration, etc.)
+- Backend logs show no errors
+
+--------------------------------------------------------------------------------
+TEST CASE E1: Verify Session Notifications
+--------------------------------------------------------------------------------
+
+Purpose: Verify that the Gentle Nudge system sends notifications at the correct
+times, even when the extension popup is closed.
+
+Prerequisites:
+--------------
+1. Chrome extension is loaded and authenticated
+2. System notifications are enabled for Chrome
+
+Test Steps:
+-----------
+1. Open the AuraFlow extension popup
+2. Click "Generate Ritual" button to get a ritual suggestion
+3. Note the work and break durations (e.g., 50 min work, 10 min break)
+4. For testing purposes, we'll use shorter durations:
+   - Open browser console in the popup (right-click → Inspect popup)
+   - Run this code to start a 1-minute test session:
+
+```javascript
+startFocusSession(1, 1, 'Test notification session');
+```
+
+5. Verify the session started UI appears showing:
+   - "🎯 Focus Session Active"
+   - Work Duration: 1 minute
+   - Break Duration: 1 minute
+   - "You'll receive a notification when it's time for your break"
+
+6. CLOSE the extension popup window (important!)
+7. Wait 1 minute
+8. Observe system notifications
+
+Expected Behavior:
+------------------
+After 1 minute (work period ends):
+- System notification appears with:
+  - Title: "AuraFlow: Time for a mindful break!"
+  - Message: Random affirmation (e.g., "A moment of rest is a moment of growth.")
+  - AuraFlow icon
+
+After 2 minutes total (break period ends):
+- Second system notification appears with:
+  - Title: "AuraFlow: Break complete!"
+  - Message: "Ready to continue your focused work?"
+
+✅ SUCCESS INDICATORS:
+- First notification appears exactly after 1 minute
+- Notification includes random affirmation message
+- Second notification appears after 2 minutes total
+- Notifications appear even though popup is closed
+- Notifications use AuraFlow icon
+- No errors in service worker console
+
+Verification:
+-------------
+1. Check service worker console (chrome://extensions/ → service worker link)
+2. Should see logs:
+   - "Alarms created: work ends in 1min, break ends in 2min"
+   - "Alarm fired: AURAFLOW_WORK_END"
+   - "Work end notification sent with affirmation: ..."
+   - "Alarm fired: AURAFLOW_BREAK_END"
+   - "Break end notification sent"
+
+--------------------------------------------------------------------------------
+TEST CASE E2: Verify Early Session End
+--------------------------------------------------------------------------------
+
+Purpose: Verify that ending a session early properly cancels all scheduled
+notifications.
+
+Prerequisites:
+--------------
+1. Chrome extension is loaded and authenticated
+
+Test Steps:
+-----------
+1. Open the AuraFlow extension popup
+2. Start a 5-minute test session using browser console:
+
+```javascript
+startFocusSession(5, 2, 'Test early end session');
+```
+
+3. Verify session started UI appears
+4. Immediately click the "End Session Early" button
+5. Verify session ended UI appears briefly
+6. Close the extension popup
+7. Wait for 5+ minutes (longer than the original session duration)
+8. Observe that NO notifications appear
+
+Expected Behavior:
+------------------
+- Session starts successfully
+- "End Session Early" button is visible
+- Clicking button ends session immediately
+- Session ended confirmation appears
+- NO notifications appear after waiting 5+ minutes
+- Alarms are properly cleared
+
+✅ SUCCESS INDICATORS:
+- Session ends immediately when button clicked
+- No notifications appear after session is ended
+- Service worker console shows:
+  - "Ending focus session early"
+  - "All AuraFlow alarms cleared"
+  - "Session state cleared"
+- No alarm fired logs appear after session end
+
+Verification:
+-------------
+1. Check service worker console
+2. Should see:
+   - "Alarms created: work ends in 5min, break ends in 7min"
+   - "Ending focus session early"
+   - "All AuraFlow alarms cleared"
+   - "Session state cleared"
+3. Should NOT see after 5+ minutes:
+   - "Alarm fired: AURAFLOW_WORK_END"
+   - "Alarm fired: AURAFLOW_BREAK_END"
+
+--------------------------------------------------------------------------------
+TEST CASE E3: Verify Affirmation Variety
+--------------------------------------------------------------------------------
+
+Purpose: Verify that different affirmations are shown across multiple sessions.
+
+Test Steps:
+-----------
+1. Start and complete 5 short test sessions (1 minute each)
+2. Note the affirmation message in each work-end notification
+3. Compare the messages
+
+Expected Behavior:
+------------------
+- At least 3 different affirmations should appear across 5 sessions
+- Messages should be compassionate and encouraging
+- No errors in message selection
+
+✅ SUCCESS INDICATOR:
+- Variety in affirmation messages (not always the same one)
+- All messages are from the AFFIRMATIONS array
+- Messages are appropriate and encouraging
+
+================================================================================
+PRODUCTION HARDENING SUCCESS CRITERIA
+================================================================================
+
+Edge Case Handling:
+[ ] Scheduling handles null/undefined calendar events
+[ ] Scheduling handles malformed events (missing times)
+[ ] Scheduling merges overlapping events correctly
+[ ] Scheduling handles all-day events
+[ ] Ritual generation handles null context
+[ ] Ritual generation handles empty/null titles
+[ ] Ritual generation handles invalid property values
+
+Gentle Nudge System:
+[ ] Session can be started with work and break durations
+[ ] Notifications appear at correct times
+[ ] Notifications work when popup is closed
+[ ] Affirmations are randomly selected
+[ ] Session can be ended early
+[ ] Early end cancels all pending notifications
+[ ] Multiple sessions can be run consecutively
+
+Permissions:
+[ ] manifest.json includes "alarms" permission
+[ ] manifest.json includes "notifications" permission
+[ ] Extension loads without permission errors
+
+================================================================================
+FINAL PRODUCTION READINESS VERIFICATION
+================================================================================
+
+If all test cases pass, the system is production-ready with:
+✓ Robust edge case handling
+✓ Graceful error recovery
+✓ Persistent notification system
+✓ Compassionate user experience
+✓ No crashes on malformed input
+
+================================================================================
+
+
+
+================================================================================
+TEST SUITE E: WEBSITE BLOCKING (DISTRACTION SHIELD)
+================================================================================
+
+This test suite verifies the Website Blocking feature that prevents access to
+distracting websites during focus sessions using chrome.declarativeNetRequest.
+
+--------------------------------------------------------------------------------
+TEST CASE E1: Verify Blocking During a Focus Session
+--------------------------------------------------------------------------------
+
+Purpose: Verify that blocked websites are inaccessible during a focus session
+and become accessible again after the session ends.
+
+Prerequisites:
+--------------
+1. Chrome extension is loaded and authenticated
+2. Backend server is running (for session features)
+
+Setup:
+------
+1. Open the AuraFlow extension popup
+2. Scroll down to the "🛡️ Distraction Shield" section
+3. In the "Sites to Block" textarea, enter the following on separate lines:
+   youtube.com
+   twitter.com
+4. Click the "Save List" button
+5. Verify the button shows "✅ Saved!" confirmation
+
+Test Steps:
+-----------
+1. Start a new focus session:
+   - Click "Generate Ritual" to get a ritual suggestion
+   - In the browser console (right-click popup → Inspect), run:
+     ```javascript
+     startFocusSession(5, 2, 'Test blocking session');
+     ```
+   - Verify the session started UI appears
+
+2. Test blocked site (YouTube):
+   - Open a new browser tab
+   - Try to navigate to: https://www.youtube.com
+   - Observe the result
+
+3. Test non-blocked site (Google):
+   - Open another new browser tab
+   - Try to navigate to: https://www.google.com
+   - Observe the result
+
+4. End the focus session:
+   - Return to the AuraFlow extension popup
+   - Click the "End Session Early" button
+   - Verify session ended confirmation appears
+
+5. Test unblocking:
+   - Return to the tab where YouTube was blocked
+   - Refresh the page (F5 or Ctrl+R)
+   - Observe the result
+
+Expected Results:
+-----------------
+
+Step 2 (Blocked site during session):
+- YouTube page should be blocked by Chrome
+- Browser shows error: "This site can't be reached" or similar
+- Error message may say "Blocked by an extension"
+- Page does NOT load
+
+Step 3 (Non-blocked site during session):
+- Google page should load normally
+- No blocking or errors
+- Full functionality available
+
+Step 5 (After session ends):
+- YouTube page should now load correctly
+- No blocking or errors
+- Full functionality restored
+
+✅ SUCCESS INDICATORS:
+- YouTube is blocked during focus session
+- Google is NOT blocked during focus session
+- YouTube becomes accessible after session ends
+- No console errors in extension service worker
+- Blocking rules are properly added and removed
+
+Verification in Service Worker Console:
+----------------------------------------
+1. Go to chrome://extensions/
+2. Find AuraFlow Calendar extension
+3. Click "service worker" link
+4. Check console logs:
+
+Expected logs during session start:
+```
+Starting focus mode - enabling website blocking
+Updating blocking rules, enableBlocking: true
+Blocking sites: ['youtube.com', 'twitter.com']
+Blocking rule added successfully
+```
+
+Expected logs during session end:
+```
+Ending focus mode - disabling website blocking
+Updating blocking rules, enableBlocking: false
+Removed existing rules: [1]
+Blocking disabled - all rules removed
+```
+
+--------------------------------------------------------------------------------
+TEST CASE E2: Verify Multiple Blocked Sites
+--------------------------------------------------------------------------------
+
+Purpose: Verify that multiple sites can be blocked simultaneously.
+
+Setup:
+------
+1. Open AuraFlow extension
+2. In "Sites to Block" textarea, enter:
+   youtube.com
+   twitter.com
+   facebook.com
+   reddit.com
+3. Click "Save List"
+
+Test Steps:
+-----------
+1. Start a focus session (5 minutes)
+2. Try to access each blocked site in separate tabs:
+   - https://www.youtube.com
+   - https://www.twitter.com
+   - https://www.facebook.com
+   - https://www.reddit.com
+3. Try to access a non-blocked site:
+   - https://www.google.com
+4. End the session
+5. Refresh all blocked site tabs
+
+Expected Results:
+-----------------
+- All 4 blocked sites show blocking error during session
+- Google loads normally
+- All 4 sites become accessible after session ends
+
+✅ SUCCESS INDICATOR:
+- All specified sites are blocked during session
+- All sites become accessible after session ends
+
+--------------------------------------------------------------------------------
+TEST CASE E3: Verify Empty Blocked List
+--------------------------------------------------------------------------------
+
+Purpose: Verify that the system handles an empty blocked sites list gracefully.
+
+Setup:
+------
+1. Open AuraFlow extension
+2. Clear all text from "Sites to Block" textarea
+3. Click "Save List"
+
+Test Steps:
+-----------
+1. Start a focus session
+2. Try to access any website (e.g., youtube.com)
+3. End the session
+
+Expected Results:
+-----------------
+- No sites are blocked (all sites accessible)
+- No errors in console
+- Session works normally
+
+✅ SUCCESS INDICATOR:
+- System handles empty list without errors
+- No blocking occurs when list is empty
+
+--------------------------------------------------------------------------------
+TEST CASE E4: Verify Blocking Persists Across Popup Closes
+--------------------------------------------------------------------------------
+
+Purpose: Verify that blocking continues even when the extension popup is closed.
+
+Setup:
+------
+1. Configure blocked sites: youtube.com, twitter.com
+2. Save the list
+
+Test Steps:
+-----------
+1. Start a focus session
+2. CLOSE the extension popup window
+3. Try to access youtube.com in a new tab
+4. Wait 1 minute
+5. Try to access youtube.com again
+6. Re-open extension popup
+7. End the session
+8. Try to access youtube.com
+
+Expected Results:
+-----------------
+- YouTube is blocked even after popup is closed (Step 3)
+- YouTube remains blocked after waiting (Step 5)
+- YouTube becomes accessible after session ends (Step 8)
+
+✅ SUCCESS INDICATOR:
+- Blocking persists independently of popup state
+- Blocking is controlled by background service worker
+
+--------------------------------------------------------------------------------
+TEST CASE E5: Verify Subdomain Blocking
+--------------------------------------------------------------------------------
+
+Purpose: Verify that blocking works for subdomains of blocked sites.
+
+Setup:
+------
+1. Configure blocked sites: youtube.com
+2. Save the list
+
+Test Steps:
+-----------
+1. Start a focus session
+2. Try to access:
+   - https://www.youtube.com
+   - https://m.youtube.com
+   - https://music.youtube.com
+3. End the session
+
+Expected Results:
+-----------------
+- All YouTube subdomains are blocked during session
+- All become accessible after session ends
+
+✅ SUCCESS INDICATOR:
+- Blocking applies to all subdomains of specified domain
+
+================================================================================
+WEBSITE BLOCKING SUCCESS CRITERIA
+================================================================================
+
+Core Functionality:
+[ ] Blocked sites list can be saved and loaded
+[ ] Sites are blocked during focus sessions
+[ ] Sites become accessible after session ends
+[ ] Multiple sites can be blocked simultaneously
+[ ] Non-blocked sites remain accessible during sessions
+
+Edge Cases:
+[ ] Empty blocked list handled gracefully
+[ ] Blocking persists when popup is closed
+[ ] Subdomain blocking works correctly
+[ ] No errors when blocking/unblocking
+
+Permissions:
+[ ] manifest.json includes "declarativeNetRequest" permission
+[ ] manifest.json includes "*://*/*" in host_permissions
+[ ] Extension loads without permission errors
+
+User Experience:
+[ ] Save button shows success feedback
+[ ] Blocked sites show clear error message
+[ ] Session start/end triggers blocking correctly
+[ ] No impact on browser performance
+
+================================================================================
+TROUBLESHOOTING WEBSITE BLOCKING
+================================================================================
+
+Problem: Sites are not being blocked during session
+Solution:
+- Check service worker console for errors
+- Verify blocked sites list is saved (check chrome.storage.sync)
+- Ensure session was started (not just popup opened)
+- Check that sites are entered correctly (e.g., "youtube.com" not "https://youtube.com")
+
+Problem: Sites remain blocked after session ends
+Solution:
+- Check service worker console for "Blocking disabled" message
+- Manually send endFocus message in console:
+  ```javascript
+  chrome.runtime.sendMessage({action: 'endFocus'}, response => console.log(response));
+  ```
+- Reload the extension in chrome://extensions/
+
+Problem: Permission errors in console
+Solution:
+- Verify manifest.json has "declarativeNetRequest" permission
+- Verify manifest.json has "*://*/*" in host_permissions
+- Reload the extension
+
+Problem: Blocking affects all sites
+Solution:
+- Check that blocked sites list contains only specific domains
+- Verify no wildcard entries like "*" in the list
+- Check service worker console for the actual blocking rule
+
+================================================================================
+FINAL VERIFICATION FOR WEBSITE BLOCKING
+================================================================================
+
+If all test cases pass, the Website Blocking feature is COMPLETE! 🎉
+
+The system demonstrates:
+✓ Blocked sites are inaccessible during focus sessions
+✓ Blocking is automatically enabled/disabled with sessions
+✓ Multiple sites can be blocked simultaneously
+✓ Blocking persists when popup is closed
+✓ Non-blocked sites remain accessible
+✓ Clean error handling and user feedback
+
+This feature significantly enhances the AuraFlow value proposition by creating
+a true distraction-free environment during focus sessions.
+
+================================================================================
+

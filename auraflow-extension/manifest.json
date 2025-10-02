@@ -11,10 +11,14 @@
     },
     "permissions": [
         "identity",
-        "storage"
+        "storage",
+        "alarms",
+        "notifications",
+        "declarativeNetRequest"
     ],
     "host_permissions": [
-        "https://www.googleapis.com/*"
+        "https://www.googleapis.com/*",
+        "*://*/*"
     ],
     "background": {
         "service_worker": "background.js"

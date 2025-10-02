@@ -4,6 +4,149 @@
 // Chrome extension service worker for Manifest V3
 console.log('AuraFlow service worker loaded');
 
+// ============================================================================
+// AFFIRMATIONS & MINDFULNESS BREAKS
+// ============================================================================
+
+// Collection of compassionate affirmation messages for break notifications
+const AFFIRMATIONS = [
+  "A moment of rest is a moment of growth.",
+  "You are doing great. Take a deep breath.",
+  "Stay hydrated and stretch for a moment.",
+  "Your focus is a gift to yourself.",
+  "Progress, not perfection. You're on the right path.",
+  "This break is part of your productivity.",
+  "Mindful rest fuels mindful work.",
+  "You've earned this pause. Enjoy it.",
+  "Small breaks lead to big breakthroughs.",
+  "Be kind to yourself. You're doing enough.",
+  "Breathe in calm, breathe out tension.",
+  "Your well-being matters more than any task."
+];
+
+/**
+ * Selects a random affirmation from the collection
+ * @returns {string} Random affirmation message
+ */
+function getRandomAffirmation() {
+  const index = Math.floor(Math.random() * AFFIRMATIONS.length);
+  return AFFIRMATIONS[index];
+}
+
+// ============================================================================
+// SESSION STATE MANAGEMENT
+// ============================================================================
+
+/**
+ * Manages current focus session state
+ */
+const SessionState = {
+  /**
+   * Stores current session state for alarm handling
+   * @param {Object} sessionData - Session information
+   */
+  async saveSession(sessionData) {
+    try {
+      await chrome.storage.local.set({
+        'auraflow_active_session': {
+          workDuration: sessionData.workDuration,
+          breakDuration: sessionData.breakDuration,
+          startTime: Date.now(),
+          taskGoal: sessionData.taskGoal || 'Focus session'
+        }
+      });
+      console.log('Session state saved:', sessionData);
+      return true;
+    } catch (error) {
+      console.error('Failed to save session state:', error);
+      throw new Error('Failed to save session state');
+    }
+  },
+  
+  /**
+   * Retrieves current session state
+   * @returns {Object|null} Session data or null if no active session
+   */
+  async getSession() {
+    try {
+      const result = await chrome.storage.local.get(['auraflow_active_session']);
+      return result.auraflow_active_session || null;
+    } catch (error) {
+      console.error('Failed to retrieve session state:', error);
+      return null;
+    }
+  },
+  
+  /**
+   * Clears current session state
+   */
+  async clearSession() {
+    try {
+      await chrome.storage.local.remove(['auraflow_active_session']);
+      console.log('Session state cleared');
+      return true;
+    } catch (error) {
+      console.error('Failed to clear session state:', error);
+      throw new Error('Failed to clear session state');
+    }
+  }
+};
+
+// ============================================================================
+// ALARM MANAGEMENT
+// ============================================================================
+
+/**
+ * Manages chrome.alarms for focus session timing
+ */
+const AlarmManager = {
+  WORK_END_ALARM: 'AURAFLOW_WORK_END',
+  BREAK_END_ALARM: 'AURAFLOW_BREAK_END',
+  
+  /**
+   * Clears all existing AuraFlow alarms
+   */
+  async clearAllAlarms() {
+    try {
+      await chrome.alarms.clear(this.WORK_END_ALARM);
+      await chrome.alarms.clear(this.BREAK_END_ALARM);
+      console.log('All AuraFlow alarms cleared');
+      return true;
+    } catch (error) {
+      console.error('Failed to clear alarms:', error);
+      throw new Error('Failed to clear alarms');
+    }
+  },
+  
+  /**
+   * Creates alarms for a focus session
+   * @param {number} workDuration - Work duration in minutes
+   * @param {number} breakDuration - Break duration in minutes
+   */
+  async createSessionAlarms(workDuration, breakDuration) {
+    try {
+      // Clear any existing alarms first
+      await this.clearAllAlarms();
+      
+      // Create work end alarm
+      await chrome.alarms.create(this.WORK_END_ALARM, {
+        delayInMinutes: workDuration
+      });
+      
+      // Create break end alarm
+      await chrome.alarms.create(this.BREAK_END_ALARM, {
+        delayInMinutes: workDuration + breakDuration
+      });
+      
+      console.log(`Alarms created: work ends in ${workDuration}min, break ends in ${workDuration + breakDuration}min`);
+      return true;
+    } catch (error) {
+      console.error('Failed to create alarms:', error);
+      throw new Error('Failed to create session alarms');
+    }
+  }
+};
+
 // Storage utilities for token management
 const StorageUtils = {
     // Store authentication tokens securely
@@ -714,6 +857,50 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
                     sendResponse({ success: true, data: debugInfo });
                     break;
 
+                case 'startSession':
+                    console.log('Starting focus session');
+                    const { workDuration, breakDuration, taskGoal } = message.data || {};
+                    
+                    // Validate input
+                    if (!workDuration || !breakDuration) {
+                        sendResponse({ 
+                            success: false, 
+                            error: 'Missing session duration parameters' 
+                        });
+                        break;
+                    }
+                    
+                    // Save session state
+                    await SessionState.saveSession({
+                        workDuration,
+                        breakDuration,
+                        taskGoal
+                    });
+                    
+                    // Create alarms
+                    await AlarmManager.createSessionAlarms(workDuration, breakDuration);
+                    
+                    sendResponse({ 
+                        success: true, 
+                        data: { message: 'Session started successfully' } 
+                    });
+                    break;
+
+                case 'endSession':
+                    console.log('Ending focus session early');
+                    
+                    // Clear all alarms
+                    await AlarmManager.clearAllAlarms();
+                    
+                    // Clear session state
+                    await SessionState.clearSession();
+                    
+                    sendResponse({ 
+                        success: true, 
+                        data: { message: 'Session ended successfully' } 
+                    });
+                    break;
+
                 case 'logout':
                     console.log('Handling logout request');
 
@@ -761,6 +948,62 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
 
     // Return true to indicate we'll send response asynchronously
     return true;
+});
+
+// ============================================================================
+// ALARM EVENT LISTENER FOR GENTLE NUDGE NOTIFICATIONS
+// ============================================================================
+
+/**
+ * Handles alarm events and triggers notifications
+ */
+chrome.alarms.onAlarm.addListener(async (alarm) => {
+  console.log('Alarm fired:', alarm.name);
+  
+  try {
+    const session = await SessionState.getSession();
+    
+    if (!session) {
+      console.warn('No active session found for alarm');
+      return;
+    }
+    
+    if (alarm.name === AlarmManager.WORK_END_ALARM) {
+      // Work period ended - time for break
+      const affirmation = getRandomAffirmation();
+      
+      await chrome.notifications.create({
+        type: 'basic',
+        iconUrl: 'icons/icon128.png',
+        title: 'AuraFlow: Time for a mindful break!',
+        message: affirmation,
+        priority: 2,
+        requireInteraction: false
+      });
+      
+      console.log('Work end notification sent with affirmation:', affirmation);
+      
+    } else if (alarm.name === AlarmManager.BREAK_END_ALARM) {
+      // Break period ended - time to resume or finish
+      await chrome.notifications.create({
+        type: 'basic',
+        iconUrl: 'icons/icon128.png',
+        title: 'AuraFlow: Break complete!',
+        message: 'Ready to continue your focused work?',
+        priority: 1,
+        requireInteraction: false
+      });
+      
+      console.log('Break end notification sent');
+      
+      // Clear session state
+      await SessionState.clearSession();
+    }
+    
+  } catch (error) {
+    console.error('Error handling alarm:', error);
+    ErrorUtils.logError('alarm_handler', error, { alarmName: alarm.name });
+  }
 });
 
 // Service worker installation and activation
@@ -880,3 +1123,102 @@ if (typeof module !== 'undefined' && module.exports) {
         TestUtils
     };
 }
+
+/
+/ ============================================================================
+// WEBSITE BLOCKING (DISTRACTION SHIELD)
+// ============================================================================
+
+/**
+ * Updates the declarativeNetRequest blocking rules
+ * @param {boolean} enableBlocking - Whether to enable or disable blocking
+ */
+async function updateBlockingRules(enableBlocking = false) {
+  try {
+    console.log('Updating blocking rules, enableBlocking:', enableBlocking);
+    
+    // Step 1: Get all existing dynamic rules
+    const existingRules = await chrome.declarativeNetRequest.getDynamicRules();
+    const existingRuleIds = existingRules.map(rule => rule.id);
+    
+    // Step 2: Remove all existing rules to prevent duplication
+    if (existingRuleIds.length > 0) {
+      await chrome.declarativeNetRequest.updateDynamicRules({
+        removeRuleIds: existingRuleIds
+      });
+      console.log('Removed existing rules:', existingRuleIds);
+    }
+    
+    // Step 3: If blocking should be enabled, create new rules
+    if (enableBlocking) {
+      // Get the list of blocked sites from storage
+      const result = await chrome.storage.sync.get(['auraFlowBlockedSites']);
+      const blockedSites = result.auraFlowBlockedSites || [];
+      
+      if (blockedSites.length === 0) {
+        console.log('No sites to block');
+        return;
+      }
+      
+      console.log('Blocking sites:', blockedSites);
+      
+      // Step 4: Create the blocking rule
+      const blockingRule = {
+        id: 1,
+        priority: 1,
+        action: {
+          type: 'block'
+        },
+        condition: {
+          urlFilter: '*',
+          resourceTypes: ['main_frame'],
+          requestDomains: blockedSites
+        }
+      };
+      
+      // Step 5: Add the new rule
+      await chrome.declarativeNetRequest.updateDynamicRules({
+        addRules: [blockingRule]
+      });
+      
+      console.log('Blocking rule added successfully');
+    } else {
+      console.log('Blocking disabled - all rules removed');
+    }
+  } catch (error) {
+    console.error('Error updating blocking rules:', error);
+    ErrorUtils.logError('update_blocking_rules', error, { enableBlocking });
+  }
+}
+
+/**
+ * Handles focus session start/end messages for blocking control
+ */
+chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  // Handle blocking control messages
+  if (message.action === 'startFocus') {
+    console.log('Starting focus mode - enabling website blocking');
+    updateBlockingRules(true)
+      .then(() => {
+        sendResponse({ success: true, message: 'Blocking enabled' });
+      })
+      .catch(error => {
+        console.error('Failed to enable blocking:', error);
+        sendResponse({ success: false, error: error.message });
+      });
+    return true; // Keep channel open for async response
+  }
+  
+  if (message.action === 'endFocus') {
+    console.log('Ending focus mode - disabling website blocking');
+    updateBlockingRules(false)
+      .then(() => {
+        sendResponse({ success: true, message: 'Blocking disabled' });
+      })
+      .catch(error => {
+        console.error('Failed to disable blocking:', error);
+        sendResponse({ success: false, error: error.message });
+      });
+    return true; // Keep channel open for async response
+  }
+});
