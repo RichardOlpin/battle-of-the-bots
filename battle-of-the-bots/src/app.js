@@ -4,6 +4,8 @@
  */
 
 const express = require('express');
+const session = require('express-session');
+const cookieParser = require('cookie-parser');
 const helmet = require('helmet');
 const config = require('./utils/config');
 const { errorHandler } = require('./middleware/error.middleware');
@@ -13,6 +15,7 @@ const scheduleRoutes = require('./routes/schedule.routes');
 const ritualRoutes = require('./routes/ritual.routes');
 const sessionRoutes = require('./routes/session.routes');
 const authRoutes = require('./routes/auth.routes');
+const calendarRoutes = require('./routes/calendar.routes');
 
 /**
  * Validates environment variables before starting the server
@@ -54,16 +57,29 @@ function createApp() {
     crossOriginEmbedderPolicy: false
   }));
   
-  // CORS middleware - Allow Chrome extension to access the API
+  // CORS middleware - Allow Chrome extension and webapp to access the API
   app.use((req, res, next) => {
-    // Allow requests from Chrome extensions
     const origin = req.headers.origin;
+    
+    // List of allowed origins
+    const allowedOrigins = [
+      'http://localhost:5000',  // Webapp
+      'http://localhost:3000',  // Alternative localhost
+      'http://127.0.0.1:5000',  // Alternative localhost IP
+      'http://127.0.0.1:3000'   // Alternative localhost IP
+    ];
+    
+    // Allow requests from Chrome extensions
     if (origin && origin.startsWith('chrome-extension://')) {
       res.setHeader('Access-Control-Allow-Origin', origin);
-    } else {
-      // Allow localhost for development
-      res.setHeader('Access-Control-Allow-Origin', 'http://localhost:3000');
+    } else if (origin && allowedOrigins.includes(origin)) {
+      // Allow localhost origins for development
+      res.setHeader('Access-Control-Allow-Origin', origin);
+    } else if (!origin) {
+      // Allow requests with no origin (like from same origin or curl)
+      res.setHeader('Access-Control-Allow-Origin', '*');
     }
+    
     res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
     res.setHeader('Access-Control-Allow-Credentials', 'true');
@@ -79,6 +95,22 @@ function createApp() {
   // Body parsing middleware
   app.use(express.json({ limit: '10mb' }));
   app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+  
+  // Cookie parser middleware
+  app.use(cookieParser());
+  
+  // Session middleware
+  app.use(session({
+    secret: config.security.sessionSecret,
+    resave: false,
+    saveUninitialized: false,
+    cookie: {
+      secure: config.nodeEnv === 'production', // HTTPS only in production
+      httpOnly: true,
+      maxAge: 24 * 60 * 60 * 1000, // 24 hours
+      sameSite: 'lax'
+    }
+  }));
   
   // Request logging middleware (simple console logging for MVP)
   app.use((req, res, next) => {
@@ -103,6 +135,7 @@ function createApp() {
   app.use('/api/ritual', ritualRoutes);
   app.use('/api/session', sessionRoutes);
   app.use('/api/auth', authRoutes);
+  app.use('/api/calendar', calendarRoutes);
   
   // Root endpoint
   app.get('/', (req, res) => {
@@ -114,6 +147,7 @@ function createApp() {
         scheduling: 'POST /api/schedule/suggest',
         ritual: 'POST /api/ritual/generate',
         session: 'POST /api/session/summary',
+        calendar: 'GET /api/calendar/events',
         auth: {
           google: 'GET /api/auth/google',
           callback: 'GET /api/auth/google/callback',
@@ -169,6 +203,7 @@ function startServer() {
     console.log(`  GET    /api/auth/google       - Initiate Google OAuth`);
     console.log(`  GET    /api/auth/status       - Check auth status`);
     console.log(`  POST   /api/auth/logout       - Logout`);
+    console.log(`  GET    /api/calendar/events   - Fetch today's calendar events`);
     console.log('\n' + '='.repeat(60) + '\n');
   });
   
