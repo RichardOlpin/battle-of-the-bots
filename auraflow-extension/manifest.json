@@ -18,6 +18,8 @@
     ],
     "host_permissions": [
         "https://www.googleapis.com/*",
+        "https://slack.com/*",
+        "https://slack.com/api/*",
         "*://*/*"
     ],
     "background": {

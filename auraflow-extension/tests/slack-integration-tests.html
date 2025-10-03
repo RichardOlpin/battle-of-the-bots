@@ -4,11 +4,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AuraFlow Calendar - Unit Tests</title>
+    <title>Slack Integration Tests - AuraFlow</title>
     <style>
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            max-width: 1200px;
+            max-width: 1400px;
             margin: 0 auto;
             padding: 20px;
             background: #f5f5f5;
@@ -48,11 +48,17 @@
             background: #357ae8;
         }
 
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+
         .test-result {
             margin: 10px 0;
             padding: 10px;
             border-radius: 4px;
             font-family: monospace;
+            font-size: 13px;
         }
 
         .test-pass {
@@ -71,6 +77,12 @@
             background: #d1ecf1;
             color: #0c5460;
             border: 1px solid #bee5eb;
+        }
+
+        .test-running {
+            background: #fff3cd;
+            color: #856404;
+            border: 1px solid #ffeaa7;
         }
 
         #test-output {
@@ -94,27 +106,59 @@
             background: #f8d7da;
             color: #721c24;
         }
+
+        .test-group {
+            margin: 15px 0;
+            padding: 10px;
+            background: #f8f9fa;
+            border-left: 4px solid #4285f4;
+        }
+
+        .test-group h3 {
+            margin: 0 0 10px 0;
+            color: #333;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 20px;
+            background: #e0e0e0;
+            border-radius: 10px;
+            overflow: hidden;
+            margin: 10px 0;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: #4285f4;
+            transition: width 0.3s ease;
+        }
     </style>
 </head>
 
 <body>
-    <h1>AuraFlow Calendar Extension - Unit Tests</h1>
+    <h1>🧪 Slack Integration Tests - AuraFlow Extension</h1>
 
     <div class="test-section">
         <h2>Test Suites</h2>
+        <p>Comprehensive integration tests for Slack status control feature</p>
         <button onclick="runAllTests()">Run All Tests</button>
-        <button onclick="runAuthTests()">Authentication Tests</button>
-        <button onclick="runEventTests()">Event Display Tests</button>
-        <button onclick="runUITests()">UI Logic Tests</button>
-        <button onclick="runSlackStorageTests()">Slack Storage Tests</button>
-        <button onclick="runSlackAuthTests()">Slack Auth Tests</button>
-        <button onclick="runSlackAPITests()">Slack API Tests</button>
+        <button onclick="runAuthTests()">Authentication Flow Tests</button>
+        <button onclick="runStatusUpdateTests()">Status Update Tests</button>
+        <button onclick="runDisconnectTests()">Disconnect Flow Tests</button>
+        <button onclick="runPersistenceTests()">Persistence Tests</button>
+        <button onclick="runErrorTests()">Error Scenario Tests</button>
+        <button onclick="runEdgeCaseTests()">Edge Case Tests</button>
         <button onclick="clearResults()">Clear Results</button>
+
+        <div class="progress-bar" id="progress-bar" style="display: none;">
+            <div class="progress-fill" id="progress-fill"></div>
+        </div>
     </div>
 
     <div id="test-output"></div>
 
-    <script src="unit-tests.js"></script>
+    <script src="slack-integration-tests.js"></script>
 </body>
 
 </html>

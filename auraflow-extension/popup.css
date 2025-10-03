@@ -6,11 +6,11 @@
   --primary-color: #6366f1;
   --primary-light: #818cf8;
   --primary-dark: #4f46e5;
-  
+
   /* Secondary Accent */
   --accent-color: #06b6d4;
   --accent-light: #22d3ee;
-  
+
   /* Neutral Palette */
   --neutral-50: #f8fafc;
   --neutral-100: #f1f5f9;
@@ -22,12 +22,12 @@
   --neutral-700: #334155;
   --neutral-800: #1e293b;
   --neutral-900: #0f172a;
-  
+
   /* Semantic Colors */
   --success-color: #10b981;
   --warning-color: #f59e0b;
   --error-color: #ef4444;
-  
+
   /* Typography */
   --font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   --font-size-xs: 0.75rem;
@@ -36,7 +36,7 @@
   --font-size-lg: 1.125rem;
   --font-size-xl: 1.25rem;
   --font-size-2xl: 1.5rem;
-  
+
   /* Spacing (8pt grid) */
   --space-1: 0.25rem;
   --space-2: 0.5rem;
@@ -47,25 +47,25 @@
   --space-8: 2rem;
   --space-10: 2.5rem;
   --space-12: 3rem;
-  
+
   /* Border Radius */
   --radius-sm: 0.375rem;
   --radius-md: 0.5rem;
   --radius-lg: 0.75rem;
   --radius-xl: 1rem;
   --radius-full: 9999px;
-  
+
   /* Shadows */
   --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
   --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
   --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
   --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
-  
+
   /* Glassmorphism */
   --glass-bg: rgba(255, 255, 255, 0.15);
   --glass-border: rgba(255, 255, 255, 0.18);
   --glass-blur: blur(10px);
-  
+
   /* Transitions */
   --transition-fast: all 0.15s ease-out;
   --transition-base: all 0.3s ease-out;
@@ -196,10 +196,23 @@ body {
 }
 
 @keyframes rainFall {
-  0% { transform: translateY(-100vh); opacity: 0; }
-  10% { opacity: 1; }
-  90% { opacity: 1; }
-  100% { transform: translateY(100vh); opacity: 0; }
+  0% {
+    transform: translateY(-100vh);
+    opacity: 0;
+  }
+
+  10% {
+    opacity: 1;
+  }
+
+  90% {
+    opacity: 1;
+  }
+
+  100% {
+    transform: translateY(100vh);
+    opacity: 0;
+  }
 }
 
 /* Beach Waves Animation */
@@ -232,8 +245,15 @@ body {
 }
 
 @keyframes waveMove {
-  0%, 100% { transform: translateX(0); }
-  50% { transform: translateX(-50%); }
+
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+
+  50% {
+    transform: translateX(-50%);
+  }
 }
 
 /* Animated Background Shapes */
@@ -366,47 +386,92 @@ body {
   left: 0;
   right: 0;
   bottom: 0;
-  background: repeating-linear-gradient(
-    90deg,
-    transparent,
-    transparent 98px,
-    rgba(148, 163, 184, 0.03) 100px
-  );
+  background: repeating-linear-gradient(90deg,
+      transparent,
+      transparent 98px,
+      rgba(148, 163, 184, 0.03) 100px);
   animation: rain 0.5s linear infinite;
   z-index: -1;
 }
 
 @keyframes float {
-  0%, 100% { transform: translateY(0px) rotate(0deg); }
-  50% { transform: translateY(-20px) rotate(180deg); }
+
+  0%,
+  100% {
+    transform: translateY(0px) rotate(0deg);
+  }
+
+  50% {
+    transform: translateY(-20px) rotate(180deg);
+  }
 }
 
 @keyframes beachFloat {
-  0%, 100% { transform: translateY(0px) rotate(0deg) scale(1); }
-  33% { transform: translateY(-15px) rotate(120deg) scale(1.1); }
-  66% { transform: translateY(-25px) rotate(240deg) scale(0.9); }
+
+  0%,
+  100% {
+    transform: translateY(0px) rotate(0deg) scale(1);
+  }
+
+  33% {
+    transform: translateY(-15px) rotate(120deg) scale(1.1);
+  }
+
+  66% {
+    transform: translateY(-25px) rotate(240deg) scale(0.9);
+  }
 }
 
 @keyframes wave {
-  0%, 100% { transform: translate(-50%, -50%) scaleX(1); }
-  50% { transform: translate(-50%, -50%) scaleX(1.2); }
+
+  0%,
+  100% {
+    transform: translate(-50%, -50%) scaleX(1);
+  }
+
+  50% {
+    transform: translate(-50%, -50%) scaleX(1.2);
+  }
 }
 
 @keyframes rainDrop {
-  0% { transform: translateY(-100vh) rotate(0deg); opacity: 0; }
-  10% { opacity: 1; }
-  90% { opacity: 1; }
-  100% { transform: translateY(100vh) rotate(360deg); opacity: 0; }
+  0% {
+    transform: translateY(-100vh) rotate(0deg);
+    opacity: 0;
+  }
+
+  10% {
+    opacity: 1;
+  }
+
+  90% {
+    opacity: 1;
+  }
+
+  100% {
+    transform: translateY(100vh) rotate(360deg);
+    opacity: 0;
+  }
 }
 
 @keyframes rain {
-  0% { transform: translateX(0); }
-  100% { transform: translateX(100px); }
+  0% {
+    transform: translateX(0);
+  }
+
+  100% {
+    transform: translateX(100px);
+  }
 }
 
 @keyframes spin {
-  0% { transform: translate(-50%, -50%) rotate(0deg); }
-  100% { transform: translate(-50%, -50%) rotate(360deg); }
+  0% {
+    transform: translate(-50%, -50%) rotate(0deg);
+  }
+
+  100% {
+    transform: translate(-50%, -50%) rotate(360deg);
+  }
 }
 
 /* ===== LAYOUT COMPONENTS ===== */
@@ -505,8 +570,15 @@ body {
 }
 
 @keyframes pulse {
-  0%, 100% { transform: scale(1); }
-  50% { transform: scale(1.05); }
+
+  0%,
+  100% {
+    transform: scale(1);
+  }
+
+  50% {
+    transform: scale(1.05);
+  }
 }
 
 .logo-container h2 {
@@ -546,7 +618,8 @@ button:focus-visible {
 }
 
 /* Primary Button */
-.primary-btn, #connect-btn {
+.primary-btn,
+#connect-btn {
   background: linear-gradient(135deg, var(--primary-color), var(--primary-light));
   color: white;
   padding: var(--space-3) var(--space-6);
@@ -554,13 +627,15 @@ button:focus-visible {
   border-radius: var(--radius-lg);
 }
 
-.primary-btn:hover, #connect-btn:hover {
+.primary-btn:hover,
+#connect-btn:hover {
   transform: translateY(-2px);
   box-shadow: var(--shadow-lg);
   background: linear-gradient(135deg, var(--primary-dark), var(--primary-color));
 }
 
-.primary-btn:active, #connect-btn:active {
+.primary-btn:active,
+#connect-btn:active {
   transform: translateY(0);
 }
 
@@ -703,11 +778,14 @@ button:focus-visible {
 }
 
 @keyframes pulse {
-  0%, 100% { 
+
+  0%,
+  100% {
     transform: scale(1);
     opacity: 1;
   }
-  50% { 
+
+  50% {
     transform: scale(1.1);
     opacity: 0.8;
   }
@@ -738,15 +816,15 @@ button:focus-visible {
   .quick-focus-content {
     gap: var(--space-3);
   }
-  
+
   .quick-focus-icon {
     font-size: 1.5rem;
   }
-  
+
   .quick-focus-title {
     font-size: var(--font-size-base);
   }
-  
+
   .quick-focus-subtitle {
     font-size: var(--font-size-xs);
   }
@@ -920,6 +998,7 @@ button:focus-visible {
     opacity: 0;
     transform: translateY(-10px);
   }
+
   to {
     opacity: 1;
     transform: translateY(0);
@@ -1201,16 +1280,17 @@ button:focus-visible {
 
 /* Responsive AI Results */
 @media (max-width: 320px) {
+
   .focus-time-slot,
   .ritual-card {
     padding: var(--space-3);
   }
-  
+
   .ritual-timing {
     flex-direction: column;
     gap: var(--space-2);
   }
-  
+
   .ritual-features {
     flex-wrap: wrap;
   }
@@ -1434,8 +1514,13 @@ button:focus-visible {
 }
 
 @keyframes spin {
-  0% { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
+  0% {
+    transform: rotate(0deg);
+  }
+
+  100% {
+    transform: rotate(360deg);
+  }
 }
 
 #loading-message {
@@ -1485,11 +1570,11 @@ button:focus-visible {
   body {
     width: 320px;
   }
-  
+
   #app {
     padding: var(--space-3);
   }
-  
+
   .glass-card {
     padding: var(--space-4);
   }
@@ -1518,6 +1603,7 @@ button:focus-visible {
 /* ===== ACCESSIBILITY IMPROVEMENTS ===== */
 
 @media (prefers-reduced-motion: reduce) {
+
   *,
   *::before,
   *::after {
@@ -1525,7 +1611,7 @@ button:focus-visible {
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
   }
-  
+
   .shape {
     animation: none;
   }
@@ -1537,9 +1623,416 @@ button:focus-visible {
     --glass-bg: rgba(255, 255, 255, 0.9);
     --glass-border: rgba(0, 0, 0, 0.3);
   }
-  
+
   .theme-dark {
     --glass-bg: rgba(0, 0, 0, 0.9);
     --glass-border: rgba(255, 255, 255, 0.3);
   }
+}
+
+/* ===== SLACK STATUS SECTION ===== */
+
+.slack-section {
+  background: var(--glass-bg);
+  backdrop-filter: var(--glass-blur);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-lg);
+  padding: var(--space-4);
+  margin-bottom: var(--space-4);
+}
+
+.slack-section h4 {
+  font-size: var(--font-size-base);
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: var(--space-4);
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+/* Not Connected State */
+.slack-not-connected {
+  text-align: center;
+}
+
+.slack-description {
+  font-size: var(--font-size-sm);
+  color: var(--text-secondary);
+  margin-bottom: var(--space-4);
+}
+
+/* Connected State */
+.slack-connected {
+  display: block;
+}
+
+.slack-workspace-info {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--space-4);
+  padding: var(--space-3);
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: var(--radius-md);
+}
+
+.slack-workspace-name {
+  font-size: var(--font-size-sm);
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.text-btn {
+  background: transparent;
+  color: var(--text-secondary);
+  padding: var(--space-1) var(--space-2);
+  font-size: var(--font-size-xs);
+  border: none;
+  cursor: pointer;
+  transition: var(--transition-base);
+}
+
+.text-btn:hover {
+  color: var(--text-primary);
+  text-decoration: underline;
+}
+
+/* Status Buttons */
+.slack-status-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin-bottom: var(--space-3);
+}
+
+.slack-status-btn {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  background: rgba(255, 255, 255, 0.1);
+  border: 2px solid transparent;
+  border-radius: var(--radius-md);
+  color: var(--text-primary);
+  font-size: var(--font-size-sm);
+  font-weight: 500;
+  cursor: pointer;
+  transition: var(--transition-base);
+  position: relative;
+  width: 100%;
+  justify-content: flex-start;
+}
+
+.slack-status-btn:hover {
+  background: rgba(255, 255, 255, 0.15);
+  transform: translateX(4px);
+  border-color: var(--glass-border);
+}
+
+.slack-status-btn:active {
+  transform: translateX(2px);
+}
+
+.slack-status-btn.active {
+  background: linear-gradient(135deg, var(--primary-color), var(--primary-light));
+  color: white;
+  border-color: var(--primary-color);
+  box-shadow: var(--shadow-md);
+}
+
+.slack-status-btn.active:hover {
+  transform: translateX(0);
+  box-shadow: var(--shadow-lg);
+}
+
+.slack-status-btn.loading {
+  opacity: 0.7;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+.slack-status-btn .status-icon {
+  font-size: var(--font-size-lg);
+  flex-shrink: 0;
+}
+
+.slack-status-btn .status-label {
+  flex: 1;
+  text-align: left;
+}
+
+/* Loading Spinner */
+.loading-spinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-top: 2px solid currentColor;
+  border-radius: var(--radius-full);
+  animation: spin 0.8s linear infinite;
+  flex-shrink: 0;
+}
+
+.loading-spinner.hidden {
+  display: none;
+}
+
+.slack-status-btn.loading .loading-spinner {
+  display: block;
+}
+
+/* Error Message */
+.slack-error {
+  padding: var(--space-3);
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  border-radius: var(--radius-md);
+  color: var(--error-color);
+  font-size: var(--font-size-xs);
+  line-height: 1.4;
+  animation: slideIn 0.3s ease-out;
+}
+
+.slack-error.hidden {
+  display: none;
+}
+
+/* Responsive adjustments for smaller screens */
+@media (max-width: 320px) {
+  .slack-status-btn {
+    padding: var(--space-2) var(--space-3);
+    gap: var(--space-2);
+  }
+
+  .slack-status-btn .status-icon {
+    font-size: var(--font-size-base);
+  }
+
+  .slack-status-btn .status-label {
+    font-size: var(--font-size-xs);
+  }
+
+  .slack-workspace-info {
+    flex-direction: column;
+    gap: var(--space-2);
+    align-items: flex-start;
+  }
+}
+
+/* Accessibility improvements */
+.slack-status-btn:focus-visible {
+  outline: 2px solid var(--primary-color);
+  outline-offset: 2px;
+}
+
+.text-btn:focus-visible {
+  outline: 2px solid var(--primary-color);
+  outline-offset: 2px;
+  border-radius: var(--radius-sm);
+}
+
+/* Screen reader only text */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border-width: 0;
+}
+
+
+/* ===== SLACK STATUS CONTROL SECTION ===== */
+
+.slack-section {
+  margin-top: var(--space-6);
+  padding: var(--space-4);
+  background: var(--bg-secondary);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--glass-border);
+}
+
+.slack-section h4 {
+  margin: 0 0 var(--space-3) 0;
+  font-size: var(--font-size-lg);
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.slack-description {
+  margin: 0 0 var(--space-4) 0;
+  font-size: var(--font-size-sm);
+  color: var(--text-secondary);
+}
+
+.slack-not-connected {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.slack-connected {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.slack-workspace-info {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: var(--space-3);
+  background: var(--bg-tertiary);
+  border-radius: var(--radius-md);
+}
+
+.slack-workspace-name {
+  font-size: var(--font-size-sm);
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.text-btn {
+  background: none;
+  border: none;
+  color: var(--primary-color);
+  font-size: var(--font-size-sm);
+  font-weight: 500;
+  cursor: pointer;
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-sm);
+  transition: var(--transition-fast);
+}
+
+.text-btn:hover {
+  background: var(--glass-bg);
+  color: var(--primary-dark);
+}
+
+.text-btn:active {
+  transform: scale(0.98);
+}
+
+.slack-status-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.slack-status-btn {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  background: var(--bg-tertiary);
+  border: 2px solid transparent;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: var(--transition-fast);
+  font-size: var(--font-size-sm);
+  font-weight: 500;
+  color: var(--text-primary);
+  position: relative;
+}
+
+.slack-status-btn:hover {
+  background: var(--glass-bg);
+  border-color: var(--glass-border);
+  transform: translateY(-1px);
+}
+
+.slack-status-btn:active {
+  transform: translateY(0);
+}
+
+.slack-status-btn.active {
+  background: var(--primary-color);
+  color: white;
+  border-color: var(--primary-dark);
+}
+
+.slack-status-btn.active:hover {
+  background: var(--primary-dark);
+}
+
+.slack-status-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.slack-status-btn .status-icon {
+  font-size: var(--font-size-xl);
+  line-height: 1;
+}
+
+.slack-status-btn .status-label {
+  flex: 1;
+  text-align: left;
+}
+
+.slack-status-btn .loading-spinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-top-color: white;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+.slack-status-btn:not(.active) .loading-spinner {
+  border-color: var(--neutral-300);
+  border-top-color: var(--primary-color);
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.slack-error {
+  padding: var(--space-3);
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid var(--error-color);
+  border-radius: var(--radius-md);
+  color: var(--error-color);
+  font-size: var(--font-size-sm);
+  margin-top: var(--space-3);
+}
+
+/* Responsive adjustments for Slack section */
+@media (max-width: 320px) {
+  .slack-status-btn {
+    padding: var(--space-2) var(--space-3);
+    gap: var(--space-2);
+  }
+
+  .slack-status-btn .status-icon {
+    font-size: var(--font-size-base);
+  }
+
+  .slack-status-btn .status-label {
+    font-size: var(--font-size-xs);
+  }
+
+  .slack-workspace-info {
+    flex-direction: column;
+    gap: var(--space-2);
+    align-items: flex-start;
+  }
+}
+
+/* Accessibility improvements for Slack controls */
+.slack-status-btn:focus-visible {
+  outline: 2px solid var(--primary-color);
+  outline-offset: 2px;
+}
+
+.text-btn:focus-visible {
+  outline: 2px solid var(--primary-color);
+  outline-offset: 2px;
+  border-radius: var(--radius-sm);
 }

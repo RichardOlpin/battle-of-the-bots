@@ -29,15 +29,18 @@ document.addEventListener('DOMContentLoaded', function () {
 
     // Set up message listener for testing
     setupMessageListener();
-    
+
     // Initialize theme system
     initializeTheme();
-    
+
     // Initialize Quick Start feature
     initializeQuickStart();
-    
+
     // Set up session event listeners
     setupSessionEventListeners();
+
+    // Initialize Slack status control
+    initializeSlackStatus();
 });
 
 async function initializePopup() {
@@ -46,7 +49,7 @@ async function initializePopup() {
 
     // Check authentication status on popup load
     await checkAuthenticationStatus();
-    
+
     // Load blocked sites list
     await loadBlockedSites();
 }
@@ -92,29 +95,48 @@ function setupEventListeners() {
         generateRitualBtn.addEventListener('click', handleGenerateRitual);
         generateRitualBtn.addEventListener('keydown', (e) => handleButtonKeydown(e, handleGenerateRitual));
     }
-    
+
     // Theme buttons are now directly in the main interface
-    
+
     // Quick Start button
     const quickStartBtn = document.getElementById('quick-start-button');
     if (quickStartBtn) {
         quickStartBtn.addEventListener('click', handleQuickStart);
         quickStartBtn.addEventListener('keydown', (e) => handleButtonKeydown(e, handleQuickStart));
     }
-    
+
     // Quick Focus button
     const quickFocusBtn = document.getElementById('quick-focus-btn');
     if (quickFocusBtn) {
         quickFocusBtn.addEventListener('click', handleQuickFocus);
         quickFocusBtn.addEventListener('keydown', (e) => handleButtonKeydown(e, handleQuickFocus));
     }
-    
+
     // Blocked sites save button
     const saveBlockedSitesBtn = document.getElementById('save-blocked-sites-button');
     if (saveBlockedSitesBtn) {
         saveBlockedSitesBtn.addEventListener('click', handleSaveBlockedSites);
         saveBlockedSitesBtn.addEventListener('keydown', (e) => handleButtonKeydown(e, handleSaveBlockedSites));
     }
+
+    // Slack status control buttons
+    const connectSlackBtn = document.getElementById('connect-slack-btn');
+    if (connectSlackBtn) {
+        connectSlackBtn.addEventListener('click', handleConnectSlack);
+        connectSlackBtn.addEventListener('keydown', (e) => handleButtonKeydown(e, handleConnectSlack));
+    }
+
+    const disconnectSlackBtn = document.getElementById('disconnect-slack-btn');
+    if (disconnectSlackBtn) {
+        disconnectSlackBtn.addEventListener('click', handleDisconnectSlack);
+        disconnectSlackBtn.addEventListener('keydown', (e) => handleButtonKeydown(e, handleDisconnectSlack));
+    }
+
+    const slackStatusButtons = document.querySelectorAll('.slack-status-btn');
+    slackStatusButtons.forEach(button => {
+        button.addEventListener('click', () => handleSlackStatusChange(button.dataset.status));
+        button.addEventListener('keydown', (e) => handleButtonKeydown(e, () => handleSlackStatusChange(button.dataset.status)));
+    });
 }
 
 // Handle keyboard events for buttons (Enter and Space)
@@ -734,22 +756,22 @@ let currentEvents = [];
 async function handleFindFocusTime() {
     console.log('Find Focus Time clicked');
     window.lastAIAction = 'focus';
-    
+
     try {
         showAILoading('Analyzing your calendar...');
-        
+
         // Get calendar events
         const response = await sendMessageToServiceWorker({ action: 'fetchEvents' });
         if (!response || !response.success) {
             throw new Error(response?.error || 'Failed to fetch calendar events');
         }
-        
+
         const events = Array.isArray(response.data) ? response.data : [];
-        
+
         // Analyze events and find optimal focus time
         const focusWindow = analyzeCalendarForFocus(events);
         displayFocusTimeResult(focusWindow);
-        
+
     } catch (error) {
         console.error('Find Focus Time error:', error);
         showAIError('Failed to analyze calendar. Please try again.');
@@ -763,18 +785,18 @@ async function handleFindFocusTime() {
 async function handleGenerateRitual() {
     console.log('Generate Ritual clicked');
     window.lastAIAction = 'ritual';
-    
+
     try {
         showAILoading('Creating your personalized ritual...');
-        
+
         // Get calendar events for context
         const response = await sendMessageToServiceWorker({ action: 'fetchEvents' });
         const events = response?.success ? response.data : [];
-        
+
         // Generate ritual based on current context
         const ritual = generatePersonalizedRitual(events);
         displayRitualResult(ritual);
-        
+
     } catch (error) {
         console.error('Generate Ritual error:', error);
         showAIError('Failed to generate ritual. Please try again.');
@@ -790,12 +812,12 @@ function analyzeCalendarForFocus(events) {
     const now = new Date();
     const endOfDay = new Date(now);
     endOfDay.setHours(18, 0, 0, 0); // End analysis at 6 PM
-    
+
     // If no events or empty calendar, suggest immediate focus time
     if (!events || events.length === 0) {
         const duration = 90; // Default 90-minute session
         const endTime = new Date(now.getTime() + duration * 60 * 1000);
-        
+
         return {
             startTime: now.toISOString(),
             endTime: endTime.toISOString(),
@@ -804,7 +826,7 @@ function analyzeCalendarForFocus(events) {
             reasoning: "Perfect! Your calendar is completely free. This is an ideal time for deep, uninterrupted focus work."
         };
     }
-    
+
     // Parse and sort events
     const todayEvents = events
         .filter(event => event && event.start)
@@ -815,12 +837,12 @@ function analyzeCalendarForFocus(events) {
         }))
         .filter(event => event.start >= now && event.start <= endOfDay)
         .sort((a, b) => a.start - b.start);
-    
+
     // If no events today, suggest immediate focus time
     if (todayEvents.length === 0) {
         const duration = 90;
         const endTime = new Date(now.getTime() + duration * 60 * 1000);
-        
+
         return {
             startTime: now.toISOString(),
             endTime: endTime.toISOString(),
@@ -829,11 +851,11 @@ function analyzeCalendarForFocus(events) {
             reasoning: "Excellent! No events scheduled for today. You have complete freedom to focus on your most important work."
         };
     }
-    
+
     // Find gaps between events
     const gaps = [];
     let currentTime = new Date(Math.max(now.getTime(), now.getTime()));
-    
+
     // Check if there's time before the first event
     if (todayEvents[0].start - currentTime >= 45 * 60 * 1000) {
         gaps.push({
@@ -842,12 +864,12 @@ function analyzeCalendarForFocus(events) {
             duration: Math.floor((todayEvents[0].start - currentTime) / (60 * 1000))
         });
     }
-    
+
     // Check gaps between events
     for (let i = 0; i < todayEvents.length - 1; i++) {
         const currentEvent = todayEvents[i];
         const nextEvent = todayEvents[i + 1];
-        
+
         if (nextEvent.start - currentEvent.end >= 45 * 60 * 1000) {
             gaps.push({
                 start: new Date(currentEvent.end),
@@ -856,7 +878,7 @@ function analyzeCalendarForFocus(events) {
             });
         }
     }
-    
+
     // Check if there's time after the last event
     const lastEvent = todayEvents[todayEvents.length - 1];
     if (endOfDay - lastEvent.end >= 45 * 60 * 1000) {
@@ -866,37 +888,37 @@ function analyzeCalendarForFocus(events) {
             duration: Math.floor((endOfDay - lastEvent.end) / (60 * 1000))
         });
     }
-    
+
     if (gaps.length === 0) {
         return null; // No suitable gaps found
     }
-    
+
     // Score gaps based on duration and time of day
     const scoredGaps = gaps.map(gap => {
         let score = Math.min(gap.duration, 120); // Base score from duration (max 120)
-        
+
         // Time of day bonus
         const hour = gap.start.getHours();
         if (hour >= 9 && hour <= 11) score += 20; // Morning focus bonus
         if (hour >= 14 && hour <= 16) score += 15; // Afternoon focus bonus
         if (hour >= 8 && hour <= 17) score += 10; // Work hours bonus
-        
+
         // Duration bonus for longer sessions
         if (gap.duration >= 90) score += 15;
         if (gap.duration >= 120) score += 10;
-        
+
         return { ...gap, score };
     });
-    
+
     // Return best gap
-    const bestGap = scoredGaps.reduce((best, current) => 
+    const bestGap = scoredGaps.reduce((best, current) =>
         current.score > best.score ? current : best
     );
-    
+
     // Suggest 75-90 minute session within the gap
     const suggestedDuration = Math.min(90, Math.max(75, bestGap.duration - 15));
     const endTime = new Date(bestGap.start.getTime() + suggestedDuration * 60 * 1000);
-    
+
     return {
         startTime: bestGap.start.toISOString(),
         endTime: endTime.toISOString(),
@@ -912,9 +934,9 @@ function analyzeCalendarForFocus(events) {
 function generateFocusReasoning(gap, eventCount) {
     const hour = gap.start.getHours();
     const timeOfDay = hour < 12 ? 'morning' : hour < 17 ? 'afternoon' : 'evening';
-    
+
     let reasoning = `This ${gap.duration}-minute window in the ${timeOfDay} provides `;
-    
+
     if (gap.duration >= 120) {
         reasoning += 'excellent space for deep work with minimal interruptions.';
     } else if (gap.duration >= 90) {
@@ -922,7 +944,7 @@ function generateFocusReasoning(gap, eventCount) {
     } else {
         reasoning += 'a solid block for concentrated effort.';
     }
-    
+
     if (eventCount <= 2) {
         reasoning += ' Your light schedule today allows for sustained focus.';
     } else if (eventCount <= 4) {
@@ -930,7 +952,7 @@ function generateFocusReasoning(gap, eventCount) {
     } else {
         reasoning += ' This is your best available window in a busy day.';
     }
-    
+
     return reasoning;
 }
 
@@ -943,11 +965,11 @@ function generatePersonalizedRitual(events) {
     const now = new Date();
     const hour = now.getHours();
     const eventCount = events ? events.length : 0;
-    
+
     // Determine context
     const timeOfDay = hour < 12 ? 'morning' : hour < 17 ? 'afternoon' : 'evening';
     const calendarDensity = eventCount <= 2 ? 'light' : eventCount <= 4 ? 'moderate' : 'busy';
-    
+
     // Ritual templates based on context
     const rituals = {
         morning: {
@@ -1020,9 +1042,9 @@ function generatePersonalizedRitual(events) {
             }
         }
     };
-    
+
     const selectedRitual = rituals[timeOfDay][calendarDensity];
-    
+
     return {
         ...selectedRitual,
         mindfulnessBreaks: calendarDensity !== 'busy', // More mindful when less busy
@@ -1038,7 +1060,7 @@ function generatePersonalizedRitual(events) {
 function displayFocusTimeResult(result) {
     const aiResults = document.getElementById('ai-results');
     if (!aiResults) return;
-    
+
     // Check if no focus window found
     if (!result || !result.startTime) {
         aiResults.innerHTML = `
@@ -1054,25 +1076,25 @@ function displayFocusTimeResult(result) {
             </div>
         `;
         aiResults.classList.remove('hidden');
-        
+
         // Add event listeners for dynamic buttons
         addAIResultsEventListeners();
         return;
     }
-    
+
     // Format times for display
     const startTime = new Date(result.startTime);
     const endTime = new Date(result.endTime);
-    
+
     const timeFormat = {
         hour: 'numeric',
         minute: '2-digit',
         hour12: true
     };
-    
+
     const startTimeStr = startTime.toLocaleTimeString('en-US', timeFormat);
     const endTimeStr = endTime.toLocaleTimeString('en-US', timeFormat);
-    
+
     aiResults.innerHTML = `
         <div class="focus-time-result">
             <div class="focus-time-header">
@@ -1097,10 +1119,10 @@ function displayFocusTimeResult(result) {
             <button class="close-results-btn" data-action="close-results" aria-label="Close results">×</button>
         </div>
     `;
-    
+
     aiResults.classList.remove('hidden');
     announceToScreenReader(`Optimal focus window found from ${startTimeStr} to ${endTimeStr}`);
-    
+
     // Add event listeners for dynamic buttons
     addAIResultsEventListeners();
 }
@@ -1112,7 +1134,7 @@ function displayFocusTimeResult(result) {
 function displayRitualResult(ritual) {
     const aiResults = document.getElementById('ai-results');
     if (!aiResults) return;
-    
+
     // Get soundscape icon
     const soundscapeIcons = {
         'rain': '🌧️',
@@ -1123,9 +1145,9 @@ function displayRitualResult(ritual) {
         'white-noise': '🔊',
         'nature': '🍃'
     };
-    
+
     const soundscapeIcon = soundscapeIcons[ritual.suggestedSoundscape?.toLowerCase()] || '🎵';
-    
+
     aiResults.innerHTML = `
         <div class="ritual-result">
             <div class="ritual-header">
@@ -1166,10 +1188,10 @@ function displayRitualResult(ritual) {
             <button class="close-results-btn" data-action="close-results" aria-label="Close results">×</button>
         </div>
     `;
-    
+
     aiResults.classList.remove('hidden');
     announceToScreenReader(`Ritual generated: ${ritual.name}`);
-    
+
     // Add event listeners for dynamic buttons
     addAIResultsEventListeners();
 }
@@ -1181,7 +1203,7 @@ function displayRitualResult(ritual) {
 function showAILoading(message) {
     const aiResults = document.getElementById('ai-results');
     if (!aiResults) return;
-    
+
     aiResults.innerHTML = `
         <div class="ai-loading">
             <div class="ai-spinner"></div>
@@ -1198,7 +1220,7 @@ function showAILoading(message) {
 function showAIError(message) {
     const aiResults = document.getElementById('ai-results');
     if (!aiResults) return;
-    
+
     aiResults.innerHTML = `
         <div class="ai-error">
             <div class="ai-error-icon">⚠️</div>
@@ -1223,16 +1245,16 @@ function setupSessionEventListeners() {
     if (sessionContainer) {
         // Add mouse movement listener
         sessionContainer.addEventListener('mousemove', handleMouseActivity);
-        
+
         // Add button event listeners
         const pauseBtn = document.getElementById('pause-btn');
         const stopBtn = document.getElementById('stop-btn');
-        
+
         if (pauseBtn) {
             pauseBtn.addEventListener('click', handlePauseSession);
             pauseBtn.addEventListener('keydown', (e) => handleButtonKeydown(e, handlePauseSession));
         }
-        
+
         if (stopBtn) {
             stopBtn.addEventListener('click', handleStopSession);
             stopBtn.addEventListener('keydown', (e) => handleButtonKeydown(e, handleStopSession));
@@ -1244,13 +1266,13 @@ function setupSessionEventListeners() {
 function handleMouseActivity() {
     const sessionContainer = document.querySelector('.session-container');
     if (!sessionContainer) return;
-    
+
     // Add active class to show controls
     sessionContainer.classList.add('mouse-active');
-    
+
     // Clear any existing timer
     clearTimeout(mouseActivityTimer);
-    
+
     // Set timer to hide controls after delay
     mouseActivityTimer = setTimeout(() => {
         sessionContainer.classList.remove('mouse-active');
@@ -1260,12 +1282,12 @@ function handleMouseActivity() {
 // Function to show session screen
 function showSessionScreen() {
     showScreen('session');
-    
+
     // Initialize with active controls, then fade out
     const sessionContainer = document.querySelector('.session-container');
     if (sessionContainer) {
         sessionContainer.classList.add('mouse-active');
-        
+
         // Set timer to hide controls after delay
         mouseActivityTimer = setTimeout(() => {
             sessionContainer.classList.remove('mouse-active');
@@ -1276,9 +1298,9 @@ function showSessionScreen() {
 // Handle pause session button click
 function handlePauseSession() {
     console.log('Pause session clicked');
-    
+
     const timerState = CoreLogic.getTimerState();
-    
+
     if (timerState.isPaused) {
         // Resume the timer
         CoreLogic.resumeTimer();
@@ -1290,23 +1312,23 @@ function handlePauseSession() {
         updatePauseButton(true);
         announceToScreenReader('Session paused');
     }
-    
+
     handleMouseActivity();
 }
 
 // Handle stop session button click
 function handleStopSession() {
     console.log('Stop session clicked');
-    
+
     // Stop the timer
     CoreLogic.stopTimer();
-    
+
     // Stop any playing sounds
     Platform.stopAllSounds();
-    
+
     // Return to events screen
     showScreen('events');
-    
+
     announceToScreenReader('Session stopped');
 }
 
@@ -1321,9 +1343,9 @@ function updatePauseButton(isPaused) {
 // Start a timer with the given duration in minutes
 function startTimer(durationMinutes) {
     console.log(`Starting timer for ${durationMinutes} minutes`);
-    
+
     const durationSeconds = CoreLogic.minutesToSeconds(durationMinutes);
-    
+
     // Start the timer with callbacks
     CoreLogic.startTimer(
         durationSeconds,
@@ -1336,7 +1358,7 @@ function startTimer(durationMinutes) {
             handleTimerComplete();
         }
     );
-    
+
     // Initialize the display
     updateTimerDisplay(durationSeconds);
     updatePauseButton(false);
@@ -1348,7 +1370,7 @@ function updateTimerDisplay(remainingSeconds) {
     if (timerDisplay) {
         timerDisplay.textContent = CoreLogic.formatTime(remainingSeconds);
     }
-    
+
     // Update progress bar if it exists
     const timerState = CoreLogic.getTimerState();
     const progressBar = document.getElementById('timer-progress');
@@ -1361,7 +1383,7 @@ function updateTimerDisplay(remainingSeconds) {
 // Handle timer completion
 async function handleTimerComplete() {
     console.log('Timer completed');
-    
+
     // Show notification
     try {
         await Platform.createNotification({
@@ -1372,17 +1394,17 @@ async function handleTimerComplete() {
     } catch (error) {
         console.error('Error showing notification:', error);
     }
-    
+
     // Play completion sound
     try {
         await Platform.playSound('notification', 80);
     } catch (error) {
         console.error('Error playing sound:', error);
     }
-    
+
     // Announce to screen reader
     announceToScreenReader('Focus session complete!');
-    
+
     // Return to events screen after a short delay
     setTimeout(() => {
         showScreen('events');
@@ -1406,7 +1428,7 @@ async function initializeTheme() {
     } catch (error) {
         console.error('Error loading theme:', error);
     }
-    
+
     // Set up theme button event listeners
     setupThemeButtons();
 }
@@ -1418,27 +1440,27 @@ function setupThemeButtons() {
     const calmBtn = document.getElementById('theme-calm-button');
     const beachBtn = document.getElementById('theme-beach-button');
     const rainBtn = document.getElementById('theme-rain-button');
-    
+
     if (lightBtn) {
         lightBtn.addEventListener('click', () => switchTheme('light'));
         lightBtn.addEventListener('keydown', (e) => handleButtonKeydown(e, () => switchTheme('light')));
     }
-    
+
     if (darkBtn) {
         darkBtn.addEventListener('click', () => switchTheme('dark'));
         darkBtn.addEventListener('keydown', (e) => handleButtonKeydown(e, () => switchTheme('dark')));
     }
-    
+
     if (calmBtn) {
         calmBtn.addEventListener('click', () => switchTheme('calm'));
         calmBtn.addEventListener('keydown', (e) => handleButtonKeydown(e, () => switchTheme('calm')));
     }
-    
+
     if (beachBtn) {
         beachBtn.addEventListener('click', () => switchTheme('beach'));
         beachBtn.addEventListener('keydown', (e) => handleButtonKeydown(e, () => switchTheme('beach')));
     }
-    
+
     if (rainBtn) {
         rainBtn.addEventListener('click', () => switchTheme('rain'));
         rainBtn.addEventListener('keydown', (e) => handleButtonKeydown(e, () => switchTheme('rain')));
@@ -1448,17 +1470,17 @@ function setupThemeButtons() {
 // Switch theme
 async function switchTheme(theme) {
     applyTheme(theme);
-    
+
     // Save theme preference
     try {
         await Platform.saveData('auraflow_theme', theme);
     } catch (error) {
         console.error('Error saving theme:', error);
     }
-    
+
     // Update active state on buttons
     updateThemeButtonStates(theme);
-    
+
     // Announce theme change to screen readers
     announceToScreenReader(`Theme changed to ${theme}`);
 }
@@ -1467,13 +1489,13 @@ async function switchTheme(theme) {
 function applyTheme(theme) {
     // Remove all theme classes
     document.body.classList.remove('theme-light', 'theme-dark', 'theme-calm', 'theme-beach', 'theme-rain');
-    
+
     // Add new theme class
     document.body.classList.add(`theme-${theme}`);
-    
+
     // Update background animations
     updateBackgroundAnimation(theme);
-    
+
     currentTheme = theme;
 }
 
@@ -1484,11 +1506,11 @@ function applyTheme(theme) {
 function updateBackgroundAnimation(theme) {
     const rainBg = document.getElementById('rain-background');
     const wavesBg = document.getElementById('waves-background');
-    
+
     // Hide all animations first
     if (rainBg) rainBg.classList.remove('active');
     if (wavesBg) wavesBg.classList.remove('active');
-    
+
     // Show appropriate animation
     if (theme === 'rain' && rainBg) {
         rainBg.classList.add('active');
@@ -1504,20 +1526,20 @@ function updateBackgroundAnimation(theme) {
 function generateRainDrops() {
     const rainContainer = document.getElementById('rain-background');
     if (!rainContainer) return;
-    
+
     // Clear existing drops
     rainContainer.innerHTML = '';
-    
+
     // Generate 60 rain drops
     for (let i = 0; i < 60; i++) {
         const drop = document.createElement('div');
         drop.className = 'rain-drop';
-        
+
         // Random positioning and timing
         drop.style.left = Math.random() * 100 + '%';
         drop.style.animationDuration = (Math.random() * 1.5 + 0.5) + 's';
         drop.style.animationDelay = Math.random() * 2 + 's';
-        
+
         rainContainer.appendChild(drop);
     }
 }
@@ -1528,7 +1550,7 @@ function updateThemeButtonStates(activeTheme) {
     themeButtons.forEach(button => {
         button.classList.remove('active');
     });
-    
+
     const activeButton = document.getElementById(`theme-${activeTheme}-button`);
     if (activeButton) {
         activeButton.classList.add('active');
@@ -1562,13 +1584,13 @@ async function initializeQuickStart() {
 function updateQuickStartButton() {
     const quickStartBtn = document.getElementById('quick-start-button');
     const quickStartDesc = document.getElementById('quick-start-description');
-    
+
     if (!quickStartBtn || !quickStartDesc || !lastSessionSettings) return;
-    
+
     // Show the Quick Start button
     quickStartBtn.classList.remove('hidden');
     quickStartDesc.classList.remove('hidden');
-    
+
     // Update description with ritual name
     if (lastSessionSettings.ritual && lastSessionSettings.ritual.name) {
         quickStartDesc.textContent = `Start '${lastSessionSettings.ritual.name}' Session`;
@@ -1580,12 +1602,12 @@ function updateQuickStartButton() {
 // Handle Quick Start button click
 function handleQuickStart() {
     console.log('Quick Start button clicked');
-    
+
     if (!lastSessionSettings) {
         console.error('No previous session settings found');
         return;
     }
-    
+
     // Start a new session with the saved settings
     startFocusSession(lastSessionSettings);
 }
@@ -1593,7 +1615,7 @@ function handleQuickStart() {
 // Save session settings when starting a new session
 async function saveSessionSettings(settings) {
     lastSessionSettings = settings;
-    
+
     // Save to storage for persistence
     try {
         await Platform.saveData('auraflow_last_session', settings);
@@ -1606,29 +1628,29 @@ async function saveSessionSettings(settings) {
 // Start a focus session with the given settings or duration
 function startFocusSession(settingsOrDuration, breakDuration, taskGoal) {
     console.log('Starting focus session with:', settingsOrDuration);
-    
+
     // Handle different parameter types
     if (typeof settingsOrDuration === 'number') {
         // Called with duration only
         const duration = settingsOrDuration;
-        
+
         // Store session settings
         chrome.storage.local.set({
             sessionDuration: duration,
             sessionType: 'focus'
         });
-        
+
         // Switch to session screen
         showSessionScreen();
-        
+
         // Start the timer
         startTimer(duration);
-        
+
         announceToScreenReader(`Starting ${duration} minute focus session`);
     } else {
         // Called with settings object
         const settings = settingsOrDuration;
-        
+
         // Apply settings to the session
         if (settings.ritual) {
             // Set timer duration
@@ -1637,14 +1659,14 @@ function startFocusSession(settingsOrDuration, breakDuration, taskGoal) {
                 const minutes = settings.ritual.workDuration;
                 timerDisplay.textContent = `${minutes}:00`;
             }
-            
+
             // Set soundscape if available
             const soundscapeSelector = document.getElementById('soundscape-selector');
             if (soundscapeSelector && settings.soundscape) {
                 soundscapeSelector.value = settings.soundscape;
             }
         }
-        
+
         // Show the session screen
         showSessionScreen();
     }
@@ -1659,10 +1681,10 @@ function startFocusSession(settingsOrDuration, breakDuration, taskGoal) {
  */
 function handleQuickFocus() {
     console.log('Quick Focus button clicked');
-    
+
     // Start a standard 25-minute focus session
     startFocusSession(25);
-    
+
     announceToScreenReader('Starting 25 minute focus session');
 }
 
@@ -1670,37 +1692,37 @@ function handleQuickFocus() {
  * Ends the current focus session early
  */
 async function endFocusSession() {
-  try {
-    // End the session
-    const response = await sendMessageToServiceWorker({
-      action: 'endSession'
-    });
-    
-    if (response.success) {
-      console.log('Focus session ended');
-      
-      // Disable website blocking
-      try {
-        const blockingResponse = await sendMessageToServiceWorker({
-          action: 'endFocus'
+    try {
+        // End the session
+        const response = await sendMessageToServiceWorker({
+            action: 'endSession'
         });
-        if (blockingResponse.success) {
-          console.log('Website blocking disabled');
+
+        if (response.success) {
+            console.log('Focus session ended');
+
+            // Disable website blocking
+            try {
+                const blockingResponse = await sendMessageToServiceWorker({
+                    action: 'endFocus'
+                });
+                if (blockingResponse.success) {
+                    console.log('Website blocking disabled');
+                }
+            } catch (blockingError) {
+                console.warn('Failed to disable blocking:', blockingError);
+            }
+
+            // Update UI to show session ended
+            showSessionEndedUI();
+            announceToScreenReader('Focus session ended');
+        } else {
+            throw new Error(response.error || 'Failed to end session');
         }
-      } catch (blockingError) {
-        console.warn('Failed to disable blocking:', blockingError);
-      }
-      
-      // Update UI to show session ended
-      showSessionEndedUI();
-      announceToScreenReader('Focus session ended');
-    } else {
-      throw new Error(response.error || 'Failed to end session');
+    } catch (error) {
+        console.error('Failed to end focus session:', error);
+        showError('Failed to end focus session. Please try again.');
     }
-  } catch (error) {
-    console.error('Failed to end focus session:', error);
-    showError('Failed to end focus session. Please try again.');
-  }
 }
 
 /**
@@ -1710,16 +1732,16 @@ async function endFocusSession() {
  * @param {string} taskGoal - Task goal
  */
 function showSessionStartedUI(workDuration, breakDuration, taskGoal) {
-  const aiResults = document.getElementById('ai-results');
-  if (!aiResults) return;
-  
-  const endTime = new Date(Date.now() + workDuration * 60 * 1000);
-  const endTimeStr = endTime.toLocaleTimeString('en-US', { 
-    hour: 'numeric', 
-    minute: '2-digit' 
-  });
-  
-  aiResults.innerHTML = `
+    const aiResults = document.getElementById('ai-results');
+    if (!aiResults) return;
+
+    const endTime = new Date(Date.now() + workDuration * 60 * 1000);
+    const endTimeStr = endTime.toLocaleTimeString('en-US', {
+        hour: 'numeric',
+        minute: '2-digit'
+    });
+
+    aiResults.innerHTML = `
     <div class="ai-result-card" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
       <div class="ai-result-title" style="color: white;">🎯 Focus Session Active</div>
       <div class="ai-result-content">
@@ -1750,24 +1772,24 @@ function showSessionStartedUI(workDuration, breakDuration, taskGoal) {
       </div>
     </div>
   `;
-  
-  aiResults.classList.remove('hidden');
-  
-  // Add event listener to end session button
-  const endSessionBtn = document.getElementById('end-session-btn');
-  if (endSessionBtn) {
-    endSessionBtn.addEventListener('click', endFocusSession);
-  }
+
+    aiResults.classList.remove('hidden');
+
+    // Add event listener to end session button
+    const endSessionBtn = document.getElementById('end-session-btn');
+    if (endSessionBtn) {
+        endSessionBtn.addEventListener('click', endFocusSession);
+    }
 }
 
 /**
  * Shows UI for ended session
  */
 function showSessionEndedUI() {
-  const aiResults = document.getElementById('ai-results');
-  if (!aiResults) return;
-  
-  aiResults.innerHTML = `
+    const aiResults = document.getElementById('ai-results');
+    if (!aiResults) return;
+
+    aiResults.innerHTML = `
     <div class="ai-result-card">
       <div class="ai-result-title">✅ Session Ended</div>
       <div class="ai-result-content">
@@ -1775,13 +1797,13 @@ function showSessionEndedUI() {
       </div>
     </div>
   `;
-  
-  aiResults.classList.remove('hidden');
-  
-  // Hide after 3 seconds
-  setTimeout(() => {
-    aiResults.classList.add('hidden');
-  }, 3000);
+
+    aiResults.classList.remove('hidden');
+
+    // Hide after 3 seconds
+    setTimeout(() => {
+        aiResults.classList.add('hidden');
+    }, 3000);
 }
 
 
@@ -1793,47 +1815,47 @@ function showSessionEndedUI() {
  * Loads the blocked sites list from storage and populates the textarea
  */
 async function loadBlockedSites() {
-  try {
-    const blockedSites = await Platform.getData('auraFlowBlockedSites') || [];
-    
-    const textarea = document.getElementById('blocked-sites-list');
-    if (textarea && blockedSites.length > 0) {
-      textarea.value = blockedSites.join('\n');
+    try {
+        const blockedSites = await Platform.getData('auraFlowBlockedSites') || [];
+
+        const textarea = document.getElementById('blocked-sites-list');
+        if (textarea && blockedSites.length > 0) {
+            textarea.value = blockedSites.join('\n');
+        }
+    } catch (error) {
+        console.error('Failed to load blocked sites:', error);
     }
-  } catch (error) {
-    console.error('Failed to load blocked sites:', error);
-  }
 }
 
 /**
  * Handles saving the blocked sites list
  */
 async function handleSaveBlockedSites() {
-  try {
-    const textarea = document.getElementById('blocked-sites-list');
-    if (!textarea) return;
-    
-    // Get text content and split by newlines
-    const text = textarea.value;
-    const sites = text
-      .split('\n')
-      .map(site => site.trim())
-      .filter(site => site.length > 0); // Remove empty lines
-    
-    // Save to storage
-    await Platform.saveData('auraFlowBlockedSites', sites);
-    
-    console.log('Blocked sites saved:', sites);
-    
-    // Show success feedback
-    showBlockingSaveSuccess();
-    
-    // Announce to screen reader
-    announceToScreenReader(`Saved ${sites.length} blocked sites`);
-  } catch (error) {
-    console.error('Failed to save blocked sites:', error);
-    showError('Failed to save blocked sites. Please try again.');
-  }
+    try {
+        const textarea = document.getElementById('blocked-sites-list');
+        if (!textarea) return;
+
+        // Get text content and split by newlines
+        const text = textarea.value;
+        const sites = text
+            .split('\n')
+            .map(site => site.trim())
+            .filter(site => site.length > 0); // Remove empty lines
+
+        // Save to storage
+        await Platform.saveData('auraFlowBlockedSites', sites);
+
+        console.log('Blocked sites saved:', sites);
+
+        // Show success feedback
+        showBlockingSaveSuccess();
+
+        // Announce to screen reader
+        announceToScreenReader(`Saved ${sites.length} blocked sites`);
+    } catch (error) {
+        console.error('Failed to save blocked sites:', error);
+        showError('Failed to save blocked sites. Please try again.');
+    }
 }
 
 /**
@@ -1860,7 +1882,7 @@ function hideAIResults() {
  */
 async function useRitual(name, workDuration, breakDuration, soundscape) {
     console.log(`Using ritual: ${name}, Work: ${workDuration}, Break: ${breakDuration}, Soundscape: ${soundscape}`);
-    
+
     try {
         // Store ritual settings using Chrome storage
         chrome.storage.local.set({
@@ -1870,27 +1892,27 @@ async function useRitual(name, workDuration, breakDuration, soundscape) {
             recommendedSoundscape: soundscape,
             sessionType: 'ritual'
         });
-        
+
         // Set the soundscape selector if available
         const soundscapeSelector = document.getElementById('soundscape-selector');
         if (soundscapeSelector) {
             soundscapeSelector.value = soundscape;
         }
-        
+
         // Switch to session screen
         showSessionScreen();
-        
+
         // Start the timer (simplified for now)
         const timerDisplay = document.getElementById('timer-display');
         if (timerDisplay) {
             timerDisplay.textContent = `${workDuration}:00`;
         }
-        
+
         // Hide AI results
         hideAIResults();
-        
+
         announceToScreenReader(`Starting ${name} ritual with ${workDuration} minute work session`);
-        
+
     } catch (error) {
         console.error('Error using ritual:', error);
         showAIError('Failed to start ritual. Please try again.');
@@ -1915,11 +1937,11 @@ function retryLastAIAction() {
 function addAIResultsEventListeners() {
     const aiResults = document.getElementById('ai-results');
     if (!aiResults) return;
-    
+
     // Use event delegation
     aiResults.addEventListener('click', (e) => {
         const action = e.target.dataset.action;
-        
+
         if (action === 'close-results') {
             hideAIResults();
         } else if (action === 'start-session') {
@@ -1935,4 +1957,359 @@ function addAIResultsEventListeners() {
             retryLastAIAction();
         }
     });
+}
+
+// ============================================================================
+// SLACK STATUS CONTROL
+// ============================================================================
+
+/**
+ * Handle Connect Slack button click
+ * Initiates OAuth flow to authenticate with Slack
+ */
+async function handleConnectSlack() {
+    console.log('Connect Slack button clicked');
+
+    const connectBtn = document.getElementById('connect-slack-btn');
+    if (!connectBtn) return;
+
+    try {
+        // Show loading state
+        connectBtn.disabled = true;
+        connectBtn.innerHTML = '<span class="btn-icon">⏳</span> Connecting...';
+
+        // Send authentication request to service worker
+        const response = await sendMessageToServiceWorker({ action: 'authenticateSlack' });
+
+        if (response && response.success) {
+            console.log('Slack authentication successful');
+
+            // Show connected state
+            const workspaceName = response.data?.workspaceName || 'Slack Workspace';
+            showSlackConnectedState(workspaceName);
+
+            // Load current status
+            await loadCurrentSlackStatus();
+
+            announceToScreenReader('Successfully connected to Slack');
+        } else {
+            throw new Error(response?.error || 'Failed to connect to Slack');
+        }
+    } catch (error) {
+        console.error('Slack authentication error:', error);
+        displaySlackError(error.message || 'Failed to connect to Slack. Please try again.');
+
+        // Reset button state
+        connectBtn.disabled = false;
+        connectBtn.innerHTML = '<span class="btn-icon">🔗</span> Connect Slack';
+    }
+}
+
+/**
+ * Handle Disconnect Slack button click
+ * Clears tokens and updates UI to disconnected state
+ */
+async function handleDisconnectSlack() {
+    console.log('Disconnect Slack button clicked');
+
+    try {
+        // Send disconnect request to service worker
+        const response = await sendMessageToServiceWorker({ action: 'disconnectSlack' });
+
+        if (response && response.success) {
+            console.log('Slack disconnected successfully');
+            showSlackDisconnectedState();
+            announceToScreenReader('Disconnected from Slack');
+        } else {
+            throw new Error(response?.error || 'Failed to disconnect from Slack');
+        }
+    } catch (error) {
+        console.error('Slack disconnect error:', error);
+        displaySlackError(error.message || 'Failed to disconnect. Please try again.');
+    }
+}
+
+/**
+ * Handle Slack status change button click
+ * Sends status update request to service worker
+ * Status is automatically stored in chrome.storage.local by the service worker
+ * @param {string} status - The status to set ('available', 'focused', 'dnd')
+ */
+async function handleSlackStatusChange(status) {
+    console.log('Slack status change requested:', status);
+
+    // Don't update if clicking the currently active status
+    const button = document.querySelector(`.slack-status-btn[data-status="${status}"]`);
+    if (!button) return;
+
+    if (button.classList.contains('active')) {
+        console.log('Status already active, no action needed');
+        return;
+    }
+
+    try {
+        // Show loading state on the clicked button
+        const spinner = button.querySelector('.loading-spinner');
+        if (spinner) {
+            spinner.classList.remove('hidden');
+        }
+        button.disabled = true;
+
+        // Send status update request to service worker
+        // The service worker will update Slack and store the status in chrome.storage.local
+        const response = await sendMessageToServiceWorker({
+            action: 'updateSlackStatus',
+            status: status
+        });
+
+        if (response && response.success) {
+            console.log('Slack status updated and stored successfully:', status);
+
+            // Update UI to reflect new active status
+            updateSlackStatusUI(status);
+
+            announceToScreenReader(`Slack status set to ${status}`);
+        } else {
+            throw new Error(response?.error || 'Failed to update Slack status');
+        }
+    } catch (error) {
+        console.error('Slack status update error:', error);
+        displaySlackError(error.message || 'Failed to update status. Please try again.');
+    } finally {
+        // Hide loading state
+        const spinner = button.querySelector('.loading-spinner');
+        if (spinner) {
+            spinner.classList.add('hidden');
+        }
+        button.disabled = false;
+    }
+}
+
+/**
+ * Load current Slack status from service worker
+ * Fetches and displays the current status to sync with actual Slack state
+ * Handles cases where status was changed outside the extension
+ */
+async function loadCurrentSlackStatus() {
+    console.log('Loading current Slack status from Slack API');
+
+    try {
+        // Fetch current status from Slack API
+        const response = await sendMessageToServiceWorker({ action: 'getCurrentSlackStatus' });
+
+        if (response && response.success && response.data) {
+            const currentStatus = response.data.status;
+            const currentEmoji = response.data.emoji;
+            const currentText = response.data.text;
+            const fromCache = response.data.fromCache;
+
+            console.log('Current Slack status:', {
+                status: currentStatus,
+                emoji: currentEmoji,
+                text: currentText,
+                fromCache: fromCache
+            });
+
+            // Get last known status from storage to compare
+            const lastStatusResponse = await sendMessageToServiceWorker({ action: 'getLastSlackStatus' });
+            const lastStatus = lastStatusResponse?.data?.status;
+
+            // Update UI with current status
+            if (currentStatus) {
+                updateSlackStatusUI(currentStatus);
+
+                // If status differs from last known, log it
+                if (lastStatus && lastStatus !== currentStatus) {
+                    console.log(`Status changed outside extension: ${lastStatus} -> ${currentStatus}`);
+                    announceToScreenReader(`Slack status synced to ${currentStatus}`);
+                }
+            } else if (lastStatus) {
+                // If we couldn't determine current status from Slack, use last known
+                console.log('Could not determine current status, using last known:', lastStatus);
+                updateSlackStatusUI(lastStatus);
+            }
+
+            // Show warning if displaying cached status
+            if (fromCache) {
+                console.warn('Displaying cached status - could not fetch from Slack');
+            }
+        } else {
+            // If fetching failed, try to show last known status
+            const lastStatusResponse = await sendMessageToServiceWorker({ action: 'getLastSlackStatus' });
+            if (lastStatusResponse && lastStatusResponse.success && lastStatusResponse.data) {
+                const lastStatus = lastStatusResponse.data.status;
+                if (lastStatus) {
+                    console.log('Using last known status from storage:', lastStatus);
+                    updateSlackStatusUI(lastStatus);
+                }
+            }
+        }
+    } catch (error) {
+        console.error('Error loading Slack status:', error);
+
+        // Try to fall back to last known status from storage
+        try {
+            const lastStatusResponse = await sendMessageToServiceWorker({ action: 'getLastSlackStatus' });
+            if (lastStatusResponse && lastStatusResponse.success && lastStatusResponse.data) {
+                const lastStatus = lastStatusResponse.data.status;
+                if (lastStatus) {
+                    console.log('Error occurred, falling back to last known status:', lastStatus);
+                    updateSlackStatusUI(lastStatus);
+                }
+            }
+        } catch (fallbackError) {
+            console.error('Failed to load fallback status:', fallbackError);
+        }
+
+        // Don't show error to user for status loading failures
+        // Just log it and continue with default state
+    }
+}
+
+/**
+ * Update Slack status UI to reflect active status
+ * Removes active class from all buttons and adds it to the current status
+ * @param {string} status - The active status ('available', 'focused', 'dnd')
+ */
+function updateSlackStatusUI(status) {
+    console.log('Updating Slack status UI:', status);
+
+    // Remove active class from all status buttons
+    const allButtons = document.querySelectorAll('.slack-status-btn');
+    allButtons.forEach(btn => {
+        btn.classList.remove('active');
+        btn.setAttribute('aria-pressed', 'false');
+    });
+
+    // Add active class to the current status button
+    const activeButton = document.querySelector(`.slack-status-btn[data-status="${status}"]`);
+    if (activeButton) {
+        activeButton.classList.add('active');
+        activeButton.setAttribute('aria-pressed', 'true');
+    }
+}
+
+/**
+ * Display error message in Slack status section
+ * Shows error message and auto-hides after 5 seconds
+ * @param {string} message - The error message to display
+ */
+function displaySlackError(message) {
+    console.log('Displaying Slack error:', message);
+
+    const errorDiv = document.getElementById('slack-status-error');
+    if (!errorDiv) return;
+
+    errorDiv.textContent = message;
+    errorDiv.classList.remove('hidden');
+
+    // Auto-hide error after 5 seconds
+    setTimeout(() => {
+        errorDiv.classList.add('hidden');
+    }, 5000);
+
+    announceToScreenReader(`Error: ${message}`);
+}
+
+/**
+ * Show Slack connected state in UI
+ * Displays workspace name and status buttons
+ * @param {string} workspaceName - The name of the connected Slack workspace
+ */
+function showSlackConnectedState(workspaceName) {
+    const notConnectedDiv = document.getElementById('slack-not-connected');
+    const connectedDiv = document.getElementById('slack-connected');
+    const workspaceNameSpan = document.getElementById('slack-workspace-name');
+
+    if (notConnectedDiv) {
+        notConnectedDiv.classList.add('hidden');
+    }
+
+    if (connectedDiv) {
+        connectedDiv.classList.remove('hidden');
+    }
+
+    if (workspaceNameSpan && workspaceName) {
+        workspaceNameSpan.textContent = workspaceName;
+    }
+}
+
+/**
+ * Show Slack disconnected state in UI
+ * Displays connect button and hides status controls
+ */
+function showSlackDisconnectedState() {
+    const notConnectedDiv = document.getElementById('slack-not-connected');
+    const connectedDiv = document.getElementById('slack-connected');
+
+    if (notConnectedDiv) {
+        notConnectedDiv.classList.remove('hidden');
+    }
+
+    if (connectedDiv) {
+        connectedDiv.classList.add('hidden');
+    }
+
+    // Clear any active status
+    const allButtons = document.querySelectorAll('.slack-status-btn');
+    allButtons.forEach(btn => {
+        btn.classList.remove('active');
+        btn.setAttribute('aria-pressed', 'false');
+    });
+}
+
+/**
+ * Initialize Slack status control on popup load
+ * Checks connection status and loads current status if connected
+ */
+async function initializeSlackStatus() {
+    console.log('Initializing Slack status control');
+
+    try {
+        // Check if Slack is connected
+        const authResponse = await sendMessageToServiceWorker({ action: 'checkSlackAuthStatus' });
+
+        if (authResponse && authResponse.success && authResponse.data) {
+            const authData = authResponse.data;
+
+            if (authData.isAuthenticated) {
+                console.log('Slack is connected, loading status');
+
+                // Show connected state with workspace name
+                const workspaceName = authData.team?.name || 'Slack Workspace';
+                showSlackConnectedState(workspaceName);
+
+                // Load and display last known status immediately (from storage)
+                const lastStatusResponse = await sendMessageToServiceWorker({ action: 'getLastSlackStatus' });
+                console.log('Last status response:', lastStatusResponse);
+                if (lastStatusResponse && lastStatusResponse.success && lastStatusResponse.data) {
+                    const lastStatus = lastStatusResponse.data.status;
+                    console.log('Last status from storage:', lastStatus);
+                    if (lastStatus) {
+                        console.log('Displaying last known status:', lastStatus);
+                        updateSlackStatusUI(lastStatus);
+                    } else {
+                        console.log('No last status found in response data');
+                    }
+                } else {
+                    console.log('Failed to get last status or no data:', lastStatusResponse);
+                }
+
+                // Note: We're NOT fetching current status from Slack API here
+                // because the emoji matching is unreliable (Slack uses :emoji: format)
+                // We rely on the last stored status which is updated when user changes it
+                // If needed, we can add a manual "Sync" button later
+            } else {
+                console.log('Slack is not connected');
+                showSlackDisconnectedState();
+            }
+        } else {
+            console.log('Could not check Slack auth status');
+            showSlackDisconnectedState();
+        }
+    } catch (error) {
+        console.error('Error initializing Slack status:', error);
+        // Show disconnected state on error
+        showSlackDisconnectedState();
+    }
 }
