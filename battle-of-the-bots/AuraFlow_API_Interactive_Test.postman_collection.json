@@ -1,0 +1,77 @@
+{
+  "info": {
+    "name": "AuraFlow API Interactive Test",
+    "description": "Interactive testing suite for AuraFlow backend services. This collection allows you to visually test all AI features and integrations.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Auth - Step 1 (Manual Browser Action)",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "http://localhost:3000/api/auth/google",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "3000",
+          "path": ["api", "auth", "google"]
+        },
+        "description": "IMPORTANT: Do not run this request in Postman. You must open this URL in your web browser to manually complete the Google sign-in and grant permissions. This creates your session on the server. After doing this, you can run the other requests in this collection."
+      },
+      "response": []
+    },
+    {
+      "name": "AI - Suggest a Focus Session",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"calendarEvents\": [\n    {\n      \"id\": \"event1\",\n      \"startTime\": \"2025-10-02T14:00:00Z\",\n      \"endTime\": \"2025-10-02T15:00:00Z\",\n      \"title\": \"Team Sync\"\n    },\n    {\n      \"id\": \"event2\",\n      \"startTime\": \"2025-10-02T17:30:00Z\",\n      \"endTime\": \"2025-10-02T18:00:00Z\",\n      \"title\": \"Project Review\"\n    }\n  ],\n  \"userPreferences\": {\n    \"preferredTime\": \"afternoon\"\n  }\n}"
+        },
+        "url": {
+          "raw": "http://localhost:3000/api/schedule/suggest",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "3000",
+          "path": ["api", "schedule", "suggest"]
+        },
+        "description": "Tests the AI scheduling algorithm. Sends sample calendar events and user preferences, and receives an optimal focus window suggestion with start time, end time, duration, and reasoning."
+      },
+      "response": []
+    },
+    {
+      "name": "AI - Generate a Ritual",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"calendarEventTitle\": \"Deep work on Q4 strategy document\",\n  \"timeOfDay\": \"morning\",\n  \"calendarDensity\": \"clear\"\n}"
+        },
+        "url": {
+          "raw": "http://localhost:3000/api/ritual/generate",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "3000",
+          "path": ["api", "ritual", "generate"]
+        },
+        "description": "Tests the AI ritual generation logic. Sends context about the user's current situation and receives a personalized focus ritual with work duration, break duration, and mindfulness recommendations."
+      },
+      "response": []
+    }
+  ]
+}

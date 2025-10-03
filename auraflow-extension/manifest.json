@@ -11,10 +11,16 @@
     },
     "permissions": [
         "identity",
-        "storage"
+        "storage",
+        "alarms",
+        "notifications",
+        "declarativeNetRequest"
     ],
     "host_permissions": [
-        "https://www.googleapis.com/*"
+        "https://www.googleapis.com/*",
+        "https://slack.com/*",
+        "https://slack.com/api/*",
+        "*://*/*"
     ],
     "background": {
         "service_worker": "background.js"
@@ -33,5 +39,8 @@
         "scopes": [
             "https://www.googleapis.com/auth/calendar.readonly"
         ]
+    },
+    "content_security_policy": {
+        "extension_pages": "script-src 'self'; object-src 'self'"
     }
 }

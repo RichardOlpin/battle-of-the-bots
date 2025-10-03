@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Slack Integration Tests - AuraFlow</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+
+        h1 {
+            color: #333;
+            border-bottom: 3px solid #4285f4;
+            padding-bottom: 10px;
+        }
+
+        .test-section {
+            background: white;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        .test-section h2 {
+            color: #4285f4;
+            margin-top: 0;
+        }
+
+        button {
+            background: #4285f4;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            margin: 5px;
+        }
+
+        button:hover {
+            background: #357ae8;
+        }
+
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+
+        .test-result {
+            margin: 10px 0;
+            padding: 10px;
+            border-radius: 4px;
+            font-family: monospace;
+            font-size: 13px;
+        }
+
+        .test-pass {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        .test-fail {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+
+        .test-info {
+            background: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+
+        .test-running {
+            background: #fff3cd;
+            color: #856404;
+            border: 1px solid #ffeaa7;
+        }
+
+        #test-output {
+            margin-top: 20px;
+        }
+
+        .summary {
+            font-size: 18px;
+            font-weight: bold;
+            padding: 15px;
+            margin: 20px 0;
+            border-radius: 4px;
+        }
+
+        .summary.pass {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .summary.fail {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        .test-group {
+            margin: 15px 0;
+            padding: 10px;
+            background: #f8f9fa;
+            border-left: 4px solid #4285f4;
+        }
+
+        .test-group h3 {
+            margin: 0 0 10px 0;
+            color: #333;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 20px;
+            background: #e0e0e0;
+            border-radius: 10px;
+            overflow: hidden;
+            margin: 10px 0;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: #4285f4;
+            transition: width 0.3s ease;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>🧪 Slack Integration Tests - AuraFlow Extension</h1>
+
+    <div class="test-section">
+        <h2>Test Suites</h2>
+        <p>Comprehensive integration tests for Slack status control feature</p>
+        <button onclick="runAllTests()">Run All Tests</button>
+        <button onclick="runAuthTests()">Authentication Flow Tests</button>
+        <button onclick="runStatusUpdateTests()">Status Update Tests</button>
+        <button onclick="runDisconnectTests()">Disconnect Flow Tests</button>
+        <button onclick="runPersistenceTests()">Persistence Tests</button>
+        <button onclick="runErrorTests()">Error Scenario Tests</button>
+        <button onclick="runEdgeCaseTests()">Edge Case Tests</button>
+        <button onclick="clearResults()">Clear Results</button>
+
+        <div class="progress-bar" id="progress-bar" style="display: none;">
+            <div class="progress-fill" id="progress-fill"></div>
+        </div>
+    </div>
+
+    <div id="test-output"></div>
+
+    <script src="slack-integration-tests.js"></script>
+</body>
+
+</html>

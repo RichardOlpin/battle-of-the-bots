@@ -1,0 +1,36 @@
+{
+  "name": "auraflow-ai-integration",
+  "version": "1.0.0",
+  "description": "AuraFlow AI & Integration Service - Backend API for intelligent scheduling, ritual generation, and session summaries",
+  "main": "src/app.js",
+  "scripts": {
+    "start": "node src/app.js",
+    "dev": "nodemon src/app.js",
+    "test": "jest --run"
+  },
+  "keywords": [
+    "auraflow",
+    "mindfulness",
+    "scheduling",
+    "focus",
+    "productivity"
+  ],
+  "author": "Karthik Sivarama Krishnan <ks7585@g.rit.edu>",
+  "license": "MIT",
+  "dependencies": {
+    "axios": "^1.6.0",
+    "bcrypt": "^5.1.1",
+    "cookie-parser": "^1.4.7",
+    "dotenv": "^16.3.1",
+    "express": "^4.18.2",
+    "express-session": "^1.18.2",
+    "express-validator": "^7.0.1",
+    "googleapis": "^128.0.0",
+    "helmet": "^7.1.0"
+  },
+  "devDependencies": {
+    "jest": "^29.7.0",
+    "nodemon": "^3.0.1",
+    "supertest": "^6.3.3"
+  }
+}
