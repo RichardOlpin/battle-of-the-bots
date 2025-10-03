@@ -3,28 +3,33 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <meta name="description" content="AuraFlow - AI-powered focus timer with calendar integration">
-    <meta name="theme-color" content="#4A55E1">
+    <meta name="description" content="AuraFlow - State-of-the-art AI-powered focus timer with advanced glassmorphism design">
+    <meta name="theme-color" content="#667eea">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     
     <link rel="stylesheet" href="style.css">
     <link rel="manifest" href="manifest.json">
     
-    <title>AuraFlow - Focus Timer</title>
+    <!-- Preload critical resources -->
+    <link rel="preload" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" as="style">
+    
+    <title>AuraFlow - Advanced Focus Timer</title>
 </head>
 <body>
-    <!-- Mobile Menu Toggle -->
-    <button id="mobile-menu-toggle" class="mobile-menu-toggle" aria-label="Toggle menu">
+    <!-- Advanced Mobile Menu Toggle -->
+    <button id="mobile-menu-toggle" class="mobile-menu-toggle" aria-label="Toggle navigation menu" aria-expanded="false">
         <span></span>
         <span></span>
         <span></span>
     </button>
 
     <div class="app-container">
-        <!-- Sidebar Navigation -->
-        <nav class="sidebar">
+        <!-- State-of-the-Art Sidebar -->
+        <nav class="sidebar" role="navigation" aria-label="Main navigation">
             <div class="sidebar-header">
                 <div class="logo">
-                    <div class="logo-icon">A</div>
+                    <div class="logo-icon" aria-hidden="true">A</div>
                     <h1 class="logo-text">AuraFlow</h1>
                 </div>
             </div>
@@ -32,14 +37,14 @@
             <div class="nav-menu">
                 <div class="nav-section">
                     <h3 class="nav-title">Dashboard</h3>
-                    <a href="#" class="nav-item active" data-screen="events">
-                        <svg class="nav-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <a href="#" class="nav-item active" data-screen="events" role="menuitem">
+                        <svg class="nav-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
                         </svg>
                         <span>Overview</span>
                     </a>
-                    <a href="#" class="nav-item" data-screen="session">
-                        <svg class="nav-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <a href="#" class="nav-item" data-screen="session" role="menuitem">
+                        <svg class="nav-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
                         </svg>
                         <span>Focus Session</span>
@@ -48,14 +53,14 @@
                 
                 <div class="nav-section">
                     <h3 class="nav-title">AI Features</h3>
-                    <button class="nav-item" id="nav-find-focus">
-                        <svg class="nav-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <button class="nav-item" id="nav-find-focus" role="menuitem">
+                        <svg class="nav-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
                         </svg>
                         <span>Find Focus Time</span>
                     </button>
-                    <button class="nav-item" id="nav-generate-ritual">
-                        <svg class="nav-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <button class="nav-item" id="nav-generate-ritual" role="menuitem">
+                        <svg class="nav-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z"></path>
                         </svg>
                         <span>Generate Ritual</span>
@@ -64,14 +69,14 @@
                 
                 <div class="nav-section">
                     <h3 class="nav-title">Settings</h3>
-                    <button class="nav-item" id="nav-themes">
-                        <svg class="nav-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <button class="nav-item" id="nav-themes" role="menuitem">
+                        <svg class="nav-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zM21 5a2 2 0 00-2-2h-4a2 2 0 00-2 2v12a4 4 0 004 4h4a2 2 0 002-2V5z"></path>
                         </svg>
                         <span>Themes</span>
                     </button>
-                    <button class="nav-item" id="nav-blocking">
-                        <svg class="nav-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <button class="nav-item" id="nav-blocking" role="menuitem">
+                        <svg class="nav-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"></path>
                         </svg>
                         <span>Website Blocking</span>
@@ -80,8 +85,8 @@
             </div>
             
             <div class="sidebar-footer">
-                <button class="nav-item logout-btn" id="sidebar-logout-btn">
-                    <svg class="nav-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <button class="nav-item logout-btn" id="sidebar-logout-btn" role="menuitem">
+                    <svg class="nav-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path>
                     </svg>
                     <span>Logout</span>
@@ -89,42 +94,43 @@
             </div>
         </nav>
 
-        <!-- Main Content -->
-        <main class="main-content">
-            <!-- Authentication Screen -->
+        <!-- Advanced Main Content -->
+        <main class="main-content" role="main">
+            <!-- State-of-the-Art Authentication Screen -->
             <div id="auth-screen" class="screen">
                 <div class="auth-container">
                     <div class="auth-hero">
-                        <div class="hero-logo">A</div>
+                        <div class="hero-logo" aria-hidden="true">A</div>
                         <h1 class="hero-title">Welcome to AuraFlow</h1>
-                        <p class="hero-subtitle">AI-powered focus sessions with intelligent calendar integration</p>
+                        <p class="hero-subtitle">Experience the future of productivity with AI-powered focus sessions and advanced glassmorphism design</p>
                     </div>
                     
                     <div class="auth-card">
                         <h2>Get Started</h2>
-                        <p>Connect your Google Calendar to unlock personalized focus recommendations</p>
-                        <button id="connect-btn" class="btn-primary">
-                            <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <p>Connect your Google Calendar to unlock intelligent focus recommendations powered by advanced AI algorithms</p>
+                        <button id="connect-btn" class="btn-primary" aria-describedby="auth-description">
+                            <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"></path>
                             </svg>
                             Connect Google Calendar
                         </button>
+                        <p id="auth-description" class="sr-only">This will redirect you to Google's secure authentication page</p>
                     </div>
                 </div>
             </div>
 
-            <!-- Events Screen -->
+            <!-- Advanced Events Screen -->
             <div id="events-screen" class="screen hidden">
-                <!-- Header -->
+                <!-- Advanced Header -->
                 <header class="page-header">
                     <div class="header-content">
                         <div class="header-text">
                             <h1 class="page-title">Dashboard</h1>
-                            <p class="page-subtitle" id="date-header">Today's Overview</p>
+                            <p class="page-subtitle" id="date-header">Today's Intelligent Overview</p>
                         </div>
                         <div class="header-actions">
-                            <button id="refresh-btn" class="btn-secondary btn-icon-only" title="Refresh">
-                                <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <button id="refresh-btn" class="btn-secondary btn-icon-only" title="Refresh data" aria-label="Refresh dashboard data">
+                                <svg width="24" height="24" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
                                 </svg>
                             </button>
@@ -132,233 +138,243 @@
                     </div>
                 </header>
 
-                <!-- Dashboard Grid -->
+                <!-- State-of-the-Art Dashboard Grid -->
                 <div class="dashboard-grid">
-                    <!-- Quick Focus Card -->
-                    <div class="card quick-focus-card">
+                    <!-- Advanced Quick Focus Card -->
+                    <article class="card quick-focus-card" role="region" aria-labelledby="quick-focus-title">
                         <div class="card-header">
-                            <h2 class="card-title">Quick Focus</h2>
-                            <svg class="card-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                            </svg>
+                            <h2 class="card-title" id="quick-focus-title">Quick Focus</h2>
+                            <div class="card-icon" aria-hidden="true">⚡</div>
                         </div>
                         <div class="card-content">
-                            <p class="card-description">Start a 25-minute focus session right now</p>
-                            <button id="quick-focus-btn" class="quick-focus-btn">
-                                Start Session
+                            <p class="card-description">Launch an instant 25-minute deep focus session with AI-optimized ambient soundscapes</p>
+                            <button id="quick-focus-btn" class="quick-focus-btn" aria-describedby="quick-focus-desc">
+                                <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.828 14.828a4 4 0 01-5.656 0M9 10h1.586a1 1 0 01.707.293l2.414 2.414a1 1 0 00.707.293H15M9 10v4a2 2 0 002 2h2a2 2 0 002-2v-4M9 10V9a2 2 0 012-2h2a2 2 0 012 2v1"></path>
+                                </svg>
+                                Start Focus Session
                             </button>
+                            <p id="quick-focus-desc" class="sr-only">Starts a 25-minute focus session with background sounds</p>
                         </div>
-                    </div>
+                    </article>
 
-                    <!-- Calendar Events Card -->
-                    <div class="card events-card">
+                    <!-- Advanced Calendar Events Card -->
+                    <article class="card events-card" role="region" aria-labelledby="schedule-title">
                         <div class="card-header">
-                            <h2 class="card-title">Today's Schedule</h2>
-                            <svg class="card-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
-                            </svg>
+                            <h2 class="card-title" id="schedule-title">Today's Schedule</h2>
+                            <div class="card-icon" aria-hidden="true">📅</div>
                         </div>
                         <div class="card-content">
-                            <div id="events-container" class="events-list">
-                                <!-- Events populated by JS -->
+                            <div id="events-container" class="events-list" role="list" aria-label="Today's calendar events">
+                                <!-- Events populated by JavaScript -->
                             </div>
-                            <div id="no-events" class="empty-state hidden">
-                                <div class="empty-icon">📅</div>
-                                <p>No events scheduled today</p>
+                            <div id="no-events" class="empty-state hidden" role="status">
+                                <div class="empty-icon" aria-hidden="true">🌟</div>
+                                <p>No events scheduled today - perfect for deep focus work!</p>
                             </div>
                         </div>
-                    </div>
+                    </article>
 
-                    <!-- AI Insights Card -->
-                    <div class="card ai-card">
+                    <!-- Advanced AI Insights Card -->
+                    <article class="card ai-card" role="region" aria-labelledby="ai-title">
                         <div class="card-header">
-                            <h2 class="card-title">AI Insights</h2>
-                            <svg class="card-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"></path>
-                            </svg>
+                            <h2 class="card-title" id="ai-title">AI Insights</h2>
+                            <div class="card-icon" aria-hidden="true">🧠</div>
                         </div>
                         <div class="card-content">
-                            <div class="ai-actions">
-                                <button id="find-focus-btn" class="btn-secondary">
-                                    <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <div class="ai-actions" role="group" aria-label="AI-powered actions">
+                                <button id="find-focus-btn" class="btn-secondary" aria-describedby="find-focus-desc">
+                                    <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
                                     </svg>
-                                    Find Focus Time
+                                    Find Optimal Focus Time
                                 </button>
-                                <button id="generate-ritual-btn" class="btn-secondary">
-                                    <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <button id="generate-ritual-btn" class="btn-secondary" aria-describedby="ritual-desc">
+                                    <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z"></path>
                                     </svg>
-                                    Generate Ritual
+                                    Generate Personal Ritual
                                 </button>
                             </div>
-                            <div id="ai-results" class="ai-results hidden">
-                                <!-- AI results populated by JS -->
+                            <div id="ai-results" class="ai-results hidden" role="region" aria-live="polite" aria-label="AI analysis results">
+                                <!-- AI results populated by JavaScript -->
                             </div>
+                            <p id="find-focus-desc" class="sr-only">Analyzes your calendar to suggest the best time for focused work</p>
+                            <p id="ritual-desc" class="sr-only">Creates a personalized productivity ritual based on your schedule</p>
                         </div>
-                    </div>
+                    </article>
 
-                    <!-- Theme Selector Card -->
-                    <div class="card theme-card">
+                    <!-- Advanced Theme Selector Card -->
+                    <article class="card theme-card" role="region" aria-labelledby="theme-title">
                         <div class="card-header">
-                            <h2 class="card-title">Theme</h2>
-                            <svg class="card-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zM21 5a2 2 0 00-2-2h-4a2 2 0 00-2 2v12a4 4 0 004 4h4a2 2 0 002-2V5z"></path>
-                            </svg>
+                            <h2 class="card-title" id="theme-title">Visual Theme</h2>
+                            <div class="card-icon" aria-hidden="true">🎨</div>
                         </div>
                         <div class="card-content">
-                            <div class="theme-grid">
-                                <button id="theme-light-button" class="theme-option" data-theme="light" title="Light">
-                                    <div class="theme-preview theme-light"></div>
+                            <div class="theme-grid" role="radiogroup" aria-labelledby="theme-title">
+                                <button id="theme-light-button" class="theme-option" data-theme="light" role="radio" aria-checked="false" aria-label="Light theme">
+                                    <div class="theme-preview theme-light" aria-hidden="true"></div>
                                     <span>Light</span>
                                 </button>
-                                <button id="theme-dark-button" class="theme-option" data-theme="dark" title="Dark">
-                                    <div class="theme-preview theme-dark"></div>
+                                <button id="theme-dark-button" class="theme-option" data-theme="dark" role="radio" aria-checked="false" aria-label="Dark theme">
+                                    <div class="theme-preview theme-dark" aria-hidden="true"></div>
                                     <span>Dark</span>
                                 </button>
-                                <button id="theme-calm-button" class="theme-option" data-theme="calm" title="Calm">
-                                    <div class="theme-preview theme-calm"></div>
+                                <button id="theme-calm-button" class="theme-option" data-theme="calm" role="radio" aria-checked="false" aria-label="Calm theme">
+                                    <div class="theme-preview theme-calm" aria-hidden="true"></div>
                                     <span>Calm</span>
                                 </button>
-                                <button id="theme-beach-button" class="theme-option" data-theme="beach" title="Beach">
-                                    <div class="theme-preview theme-beach"></div>
+                                <button id="theme-beach-button" class="theme-option" data-theme="beach" role="radio" aria-checked="false" aria-label="Beach theme">
+                                    <div class="theme-preview theme-beach" aria-hidden="true"></div>
                                     <span>Beach</span>
                                 </button>
-                                <button id="theme-rain-button" class="theme-option" data-theme="rain" title="Rain">
-                                    <div class="theme-preview theme-rain"></div>
+                                <button id="theme-rain-button" class="theme-option" data-theme="rain" role="radio" aria-checked="false" aria-label="Rain theme">
+                                    <div class="theme-preview theme-rain" aria-hidden="true"></div>
                                     <span>Rain</span>
                                 </button>
                             </div>
                         </div>
-                    </div>
+                    </article>
 
-                    <!-- Website Blocking Card -->
-                    <div class="card blocking-card">
+                    <!-- Advanced Website Blocking Card -->
+                    <article class="card blocking-card" role="region" aria-labelledby="blocking-title">
                         <div class="card-header">
-                            <h2 class="card-title">Distraction Shield</h2>
-                            <svg class="card-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"></path>
-                            </svg>
+                            <h2 class="card-title" id="blocking-title">Distraction Shield</h2>
+                            <div class="card-icon" aria-hidden="true">🛡️</div>
                         </div>
                         <div class="card-content">
-                            <p class="card-description">Block distracting websites during focus sessions</p>
+                            <p class="card-description">Advanced website blocking during focus sessions to maintain deep concentration</p>
                             <div class="form-group">
-                                <label for="blocked-sites-list" class="form-label">Blocked Sites</label>
+                                <label for="blocked-sites-list" class="form-label">Websites to Block</label>
                                 <textarea 
                                     id="blocked-sites-list" 
                                     class="form-textarea"
-                                    placeholder="youtube.com&#10;twitter.com&#10;facebook.com"
-                                    rows="4"
+                                    placeholder="youtube.com&#10;twitter.com&#10;facebook.com&#10;instagram.com&#10;reddit.com"
+                                    rows="5"
+                                    aria-describedby="blocking-help"
                                 ></textarea>
+                                <p id="blocking-help" class="sr-only">Enter one website per line. These sites will be blocked during focus sessions.</p>
                             </div>
                             <button id="save-blocked-sites-button" class="btn-primary">
-                                <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4"></path>
                                 </svg>
-                                Save Settings
+                                Save Shield Settings
                             </button>
                         </div>
-                    </div>
+                    </article>
 
-                    <!-- Stats Card -->
-                    <div class="card stats-card">
+                    <!-- Advanced Stats Card -->
+                    <article class="card stats-card" role="region" aria-labelledby="stats-title">
                         <div class="card-header">
-                            <h2 class="card-title">Today's Progress</h2>
-                            <svg class="card-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
-                            </svg>
+                            <h2 class="card-title" id="stats-title">Today's Progress</h2>
+                            <div class="card-icon" aria-hidden="true">📊</div>
                         </div>
                         <div class="card-content">
-                            <div class="stats-grid">
+                            <div class="stats-grid" role="group" aria-label="Daily statistics">
                                 <div class="stat-item">
-                                    <div class="stat-value">0</div>
+                                    <div class="stat-value" aria-label="0 focus sessions completed">0</div>
                                     <div class="stat-label">Focus Sessions</div>
                                 </div>
                                 <div class="stat-item">
-                                    <div class="stat-value">0m</div>
+                                    <div class="stat-value" aria-label="0 minutes of total focus time">0m</div>
                                     <div class="stat-label">Total Focus</div>
                                 </div>
                                 <div class="stat-item">
-                                    <div class="stat-value">0</div>
-                                    <div class="stat-label">Completed Tasks</div>
+                                    <div class="stat-value" aria-label="0 tasks completed">0</div>
+                                    <div class="stat-label">Tasks Done</div>
                                 </div>
                             </div>
                         </div>
-                    </div>
+                    </article>
                 </div>
             </div>
 
-            <!-- Session Screen -->
+            <!-- State-of-the-Art Session Screen -->
             <div id="session-screen" class="screen hidden">
                 <div class="session-container">
                     <div class="session-header">
                         <h1 class="session-title">Focus Session</h1>
-                        <button id="session-close" class="btn-secondary btn-icon-only">
-                            <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <button id="session-close" class="btn-secondary btn-icon-only" aria-label="Close session">
+                            <svg width="24" height="24" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
                             </svg>
                         </button>
                     </div>
 
                     <div class="timer-section">
-                        <div class="timer-circle">
-                            <div class="timer-display" id="timer-display">25:00</div>
-                            <div class="timer-label">Focus Time</div>
+                        <div class="timer-circle" role="timer" aria-live="polite" aria-atomic="true">
+                            <div class="timer-display" id="timer-display" aria-label="25 minutes remaining">25:00</div>
+                            <div class="timer-label">Deep Focus</div>
                         </div>
                     </div>
 
                     <div class="session-controls">
                         <div class="control-group">
-                            <label class="control-label">Volume</label>
-                            <input type="range" id="volume-slider" class="slider" min="0" max="100" value="50">
+                            <label for="volume-slider" class="control-label">Ambient Volume</label>
+                            <input 
+                                type="range" 
+                                id="volume-slider" 
+                                class="slider" 
+                                min="0" 
+                                max="100" 
+                                value="50"
+                                aria-label="Volume control"
+                                aria-describedby="volume-help"
+                            >
+                            <p id="volume-help" class="sr-only">Adjust the volume of background sounds</p>
                         </div>
 
                         <div class="control-group">
-                            <label class="control-label">Soundscape</label>
-                            <select id="soundscape-selector" class="form-select">
-                                <option value="rain">Rain</option>
-                                <option value="forest">Forest</option>
-                                <option value="cafe">Café</option>
+                            <label for="soundscape-selector" class="control-label">Soundscape</label>
+                            <select id="soundscape-selector" class="form-select" aria-describedby="soundscape-help">
+                                <option value="rain">Gentle Rain</option>
+                                <option value="forest">Forest Ambience</option>
+                                <option value="cafe">Coffee Shop</option>
                                 <option value="waves">Ocean Waves</option>
                                 <option value="white-noise">White Noise</option>
+                                <option value="silence">Pure Silence</option>
                             </select>
+                            <p id="soundscape-help" class="sr-only">Choose background sounds to enhance focus</p>
                         </div>
 
-                        <div class="session-actions">
-                            <button id="pause-btn" class="btn-secondary">
-                                <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <div class="session-actions" role="group" aria-label="Session controls">
+                            <button id="pause-btn" class="btn-secondary" aria-describedby="pause-help">
+                                <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 9v6m4-6v6m7-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
                                 </svg>
-                                Pause
+                                Pause Session
                             </button>
-                            <button id="stop-btn" class="btn-primary" style="background-color: #EF4444;">
-                                <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <button id="stop-btn" class="btn-primary" style="background: linear-gradient(135deg, #ff6b6b, #ee5a52);" aria-describedby="stop-help">
+                                <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 10h6v4H9z"></path>
                                 </svg>
-                                Stop
+                                End Session
                             </button>
+                            <p id="pause-help" class="sr-only">Temporarily pause the focus timer</p>
+                            <p id="stop-help" class="sr-only">End the current focus session</p>
                         </div>
                     </div>
                 </div>
             </div>
 
-            <!-- Loading Screen -->
+            <!-- Advanced Loading Screen -->
             <div id="loading-screen" class="screen hidden">
-                <div class="loading-container">
-                    <div class="spinner"></div>
-                    <p id="loading-message">Loading...</p>
+                <div class="loading-container" role="status" aria-live="polite">
+                    <div class="spinner" aria-hidden="true"></div>
+                    <p id="loading-message">Initializing AI systems...</p>
                 </div>
             </div>
 
-            <!-- Error Screen -->
+            <!-- Advanced Error Screen -->
             <div id="error-screen" class="screen hidden">
-                <div class="error-container">
-                    <div class="error-icon">⚠️</div>
+                <div class="error-container" role="alert" aria-live="assertive">
+                    <div class="error-icon" aria-hidden="true">⚠️</div>
                     <h2 class="error-title">Something went wrong</h2>
-                    <p id="error-message" class="error-message">Please try again</p>
+                    <p id="error-message" class="error-message">We encountered an unexpected error. Please try again.</p>
                     <button id="retry-btn" class="btn-primary">
-                        <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
                         </svg>
                         Try Again
