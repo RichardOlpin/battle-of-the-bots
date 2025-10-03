@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AuraFlow - Responsive Design Test</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: #f1f5f9;
+        }
+        
+        .test-container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        
+        h1 {
+            color: #1e293b;
+            margin-bottom: 10px;
+        }
+        
+        .instructions {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 30px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        .instructions h2 {
+            margin-top: 0;
+            color: #6366f1;
+        }
+        
+        .instructions ul {
+            line-height: 1.8;
+        }
+        
+        .breakpoint-tests {
+            display: grid;
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        
+        .breakpoint-card {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        .breakpoint-card h3 {
+            margin-top: 0;
+            color: #1e293b;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .breakpoint-card .status {
+            font-size: 24px;
+        }
+        
+        .test-item {
+            padding: 10px;
+            margin: 5px 0;
+            background: #f8fafc;
+            border-radius: 4px;
+            border-left: 3px solid #cbd5e1;
+        }
+        
+        .test-item.pass {
+            border-left-color: #10b981;
+            background: #f0fdf4;
+        }
+        
+        .test-item.fail {
+            border-left-color: #ef4444;
+            background: #fef2f2;
+        }
+        
+        .open-app-btn {
+            display: inline-block;
+            background: linear-gradient(135deg, #6366f1, #818cf8);
+            color: white;
+            padding: 12px 24px;
+            border-radius: 8px;
+            text-decoration: none;
+            font-weight: 600;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            transition: transform 0.2s;
+        }
+        
+        .open-app-btn:hover {
+            transform: translateY(-2px);
+        }
+        
+        .current-viewport {
+            background: #6366f1;
+            color: white;
+            padding: 15px 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            font-weight: 600;
+        }
+        
+        .checklist {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        .checklist h2 {
+            margin-top: 0;
+            color: #1e293b;
+        }
+        
+        .checklist-item {
+            padding: 10px;
+            margin: 8px 0;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .checklist-item input[type="checkbox"] {
+            width: 20px;
+            height: 20px;
+            cursor: pointer;
+        }
+        
+        .checklist-item label {
+            cursor: pointer;
+            flex: 1;
+        }
+    </style>
+</head>
+<body>
+    <div class="test-container">
+        <h1>🎯 AuraFlow Responsive Design Test</h1>
+        
+        <div class="current-viewport">
+            Current Viewport: <span id="viewport-size">Calculating...</span>
+        </div>
+        
+        <div class="instructions">
+            <h2>Testing Instructions</h2>
+            <p>This page helps you test the responsive design implementation for AuraFlow web app.</p>
+            <ul>
+                <li><strong>Desktop:</strong> Resize your browser window to test different breakpoints</li>
+                <li><strong>Mobile:</strong> Open this page on your mobile device or use browser DevTools device emulation</li>
+                <li><strong>Touch Targets:</strong> All interactive elements should be at least 44x44px on mobile</li>
+                <li><strong>Breakpoints:</strong> 320px, 375px, 768px, 1024px, 1440px</li>
+            </ul>
+            <a href="index.html" class="open-app-btn">Open AuraFlow App →</a>
+        </div>
+        
+        <div class="breakpoint-tests">
+            <div class="breakpoint-card">
+                <h3><span class="status" id="mobile-small-status">⏳</span> Mobile Small (&lt; 375px)</h3>
+                <div class="test-item" id="mobile-small-width">Width: 320px target</div>
+                <div class="test-item" id="mobile-small-touch">Touch targets: 44x44px minimum</div>
+                <div class="test-item" id="mobile-small-padding">Reduced padding for space efficiency</div>
+            </div>
+            
+            <div class="breakpoint-card">
+                <h3><span class="status" id="mobile-status">⏳</span> Mobile Standard (375px - 767px)</h3>
+                <div class="test-item" id="mobile-width">Full width layout</div>
+                <div class="test-item" id="mobile-touch">Touch targets: 44x44px minimum</div>
+                <div class="test-item" id="mobile-stack">Vertical button stacking</div>
+            </div>
+            
+            <div class="breakpoint-card">
+                <h3><span class="status" id="tablet-status">⏳</span> Tablet (768px - 1023px)</h3>
+                <div class="test-item" id="tablet-width">Max width: 600px</div>
+                <div class="test-item" id="tablet-touch">Touch targets: 48x48px</div>
+                <div class="test-item" id="tablet-layout">Improved spacing and larger text</div>
+            </div>
+            
+            <div class="breakpoint-card">
+                <h3><span class="status" id="desktop-status">⏳</span> Desktop (1024px+)</h3>
+                <div class="test-item" id="desktop-width">Max width: 800px</div>
+                <div class="test-item" id="desktop-grid">Grid layout for AI buttons</div>
+                <div class="test-item" id="desktop-hover">Enhanced hover effects</div>
+            </div>
+        </div>
+        
+        <div class="checklist">
+            <h2>✅ Manual Testing Checklist</h2>
+            
+            <div class="checklist-item">
+                <input type="checkbox" id="check-320">
+                <label for="check-320">Test at 320px width (small mobile)</label>
+            </div>
+            
+            <div class="checklist-item">
+                <input type="checkbox" id="check-375">
+                <label for="check-375">Test at 375px width (standard mobile)</label>
+            </div>
+            
+            <div class="checklist-item">
+                <input type="checkbox" id="check-768">
+                <label for="check-768">Test at 768px width (tablet)</label>
+            </div>
+            
+            <div class="checklist-item">
+                <input type="checkbox" id="check-1024">
+                <label for="check-1024">Test at 1024px width (desktop)</label>
+            </div>
+            
+            <div class="checklist-item">
+                <input type="checkbox" id="check-touch">
+                <label for="check-touch">Verify all buttons are at least 44x44px on mobile</label>
+            </div>
+            
+            <div class="checklist-item">
+                <input type="checkbox" id="check-readable">
+                <label for="check-readable">Verify text is readable at all sizes</label>
+            </div>
+            
+            <div class="checklist-item">
+                <input type="checkbox" id="check-scroll">
+                <label for="check-scroll">Verify no horizontal scrolling on mobile</label>
+            </div>
+            
+            <div class="checklist-item">
+                <input type="checkbox" id="check-landscape">
+                <label for="check-landscape">Test landscape orientation on mobile</label>
+            </div>
+            
+            <div class="checklist-item">
+                <input type="checkbox" id="check-touch-device">
+                <label for="check-touch-device">Test on actual touch device (phone/tablet)</label>
+            </div>
+            
+            <div class="checklist-item">
+                <input type="checkbox" id="check-interactions">
+                <label for="check-interactions">Verify all interactive elements are accessible</label>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        function updateViewportInfo() {
+            const width = window.innerWidth;
+            const height = window.innerHeight;
+            const viewportEl = document.getElementById('viewport-size');
+            
+            let breakpoint = '';
+            if (width < 375) {
+                breakpoint = 'Mobile Small';
+            } else if (width < 768) {
+                breakpoint = 'Mobile Standard';
+            } else if (width < 1024) {
+                breakpoint = 'Tablet';
+            } else if (width < 1440) {
+                breakpoint = 'Desktop';
+            } else {
+                breakpoint = 'Large Desktop';
+            }
+            
+            viewportEl.textContent = `${width}px × ${height}px (${breakpoint})`;
+            
+            // Update status indicators
+            updateStatus('mobile-small-status', width < 375);
+            updateStatus('mobile-status', width >= 375 && width < 768);
+            updateStatus('tablet-status', width >= 768 && width < 1024);
+            updateStatus('desktop-status', width >= 1024);
+        }
+        
+        function updateStatus(elementId, isActive) {
+            const el = document.getElementById(elementId);
+            if (isActive) {
+                el.textContent = '✅';
+            } else {
+                el.textContent = '⏳';
+            }
+        }
+        
+        // Update on load and resize
+        updateViewportInfo();
+        window.addEventListener('resize', updateViewportInfo);
+        
+        // Save checklist state to localStorage
+        const checkboxes = document.querySelectorAll('.checklist-item input[type="checkbox"]');
+        checkboxes.forEach(checkbox => {
+            // Load saved state
+            const saved = localStorage.getItem(checkbox.id);
+            if (saved === 'true') {
+                checkbox.checked = true;
+            }
+            
+            // Save on change
+            checkbox.addEventListener('change', () => {
+                localStorage.setItem(checkbox.id, checkbox.checked);
+            });
+        });
+    </script>
+</body>
+</html>

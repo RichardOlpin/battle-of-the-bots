@@ -2,6 +2,25 @@
 auraflow-extension/private-key.pem
 
 # Environment variables
+.env
+.env.local
+.env.*.local
+.env.development
+.env.production
+.env.test
+*.env
+!.env.example
+
+# Secrets and credentials
+*secret*
+*credential*
+*.pem
+*.key
+*.p12
+*.pfx
+*.cer
+*.crt
+!generate-secrets.js
 
 # OS generated files
 .DS_Store
@@ -27,4 +46,19 @@ coverage/
 # Logs
 *.log
 npm-debug.log*
-scripts/
+yarn-debug.log*
+yarn-error.log*
+
+# Temporary files
+*.tmp
+*.temp
+*.bak
+*.swp
+*.swo
+*~
+
+# Build outputs
+dist/
+build/
+*.zip
+*.crx

@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AuraFlow - Notification Test</title>
+    <link rel="stylesheet" href="style.css">
+    <style>
+        body {
+            padding: 2rem;
+            max-width: 800px;
+            margin: 0 auto;
+            font-family: 'Inter', sans-serif;
+        }
+        
+        .test-section {
+            background: var(--bg-secondary);
+            padding: 1.5rem;
+            border-radius: var(--radius-lg);
+            margin-bottom: 1.5rem;
+        }
+        
+        .test-section h2 {
+            margin-top: 0;
+            color: var(--text-primary);
+        }
+        
+        .test-buttons {
+            display: flex;
+            gap: 1rem;
+            flex-wrap: wrap;
+            margin-top: 1rem;
+        }
+        
+        .test-btn {
+            padding: 0.75rem 1.5rem;
+            background: var(--primary-color);
+            color: white;
+            border: none;
+            border-radius: var(--radius-md);
+            cursor: pointer;
+            font-size: 1rem;
+            transition: var(--transition-fast);
+        }
+        
+        .test-btn:hover {
+            background: var(--primary-dark);
+        }
+        
+        .test-btn.secondary {
+            background: var(--neutral-400);
+        }
+        
+        .test-btn.secondary:hover {
+            background: var(--neutral-500);
+        }
+        
+        .status-display {
+            margin-top: 1rem;
+            padding: 1rem;
+            background: var(--bg-primary);
+            border-radius: var(--radius-md);
+            border: 1px solid var(--neutral-200);
+        }
+        
+        .status-label {
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+        
+        .status-value {
+            color: var(--text-secondary);
+            margin-top: 0.5rem;
+        }
+        
+        .info-box {
+            background: #e0f2fe;
+            border: 1px solid #0ea5e9;
+            padding: 1rem;
+            border-radius: var(--radius-md);
+            margin-top: 1rem;
+        }
+        
+        .info-box p {
+            margin: 0;
+            color: #0c4a6e;
+        }
+    </style>
+</head>
+<body class="theme-light">
+    <h1>🔔 AuraFlow Notification Test</h1>
+    
+    <div class="test-section">
+        <h2>Permission Status</h2>
+        <div class="status-display">
+            <div class="status-label">Current Permission:</div>
+            <div class="status-value" id="permission-status">Checking...</div>
+        </div>
+        <div class="test-buttons">
+            <button class="test-btn" id="request-permission-btn">Request Permission</button>
+            <button class="test-btn secondary" id="check-permission-btn">Check Permission</button>
+        </div>
+        <div class="info-box">
+            <p><strong>Note:</strong> If you've already denied permission, you'll need to manually enable it in your browser settings.</p>
+        </div>
+    </div>
+    
+    <div class="test-section">
+        <h2>Test Notifications</h2>
+        <div class="test-buttons">
+            <button class="test-btn" id="test-browser-notification">Test Browser Notification</button>
+            <button class="test-btn" id="test-inapp-notification">Test In-App Notification</button>
+            <button class="test-btn" id="test-session-complete">Test Session Complete</button>
+        </div>
+    </div>
+    
+    <div class="test-section">
+        <h2>Test Scenarios</h2>
+        <div class="test-buttons">
+            <button class="test-btn secondary" id="test-granted">Simulate Granted State</button>
+            <button class="test-btn secondary" id="test-denied">Simulate Denied State</button>
+        </div>
+        <div class="info-box">
+            <p><strong>Testing:</strong> Use these buttons to test how the app behaves in different permission states.</p>
+        </div>
+    </div>
+
+    <script type="module">
+        import * as Platform from './web-platform-services.js';
+        
+        // Update permission status display
+        async function updatePermissionStatus() {
+            const permission = await Platform.getNotificationPermission();
+            const statusEl = document.getElementById('permission-status');
+            
+            let statusText = permission;
+            let statusColor = 'var(--text-secondary)';
+            
+            switch(permission) {
+                case 'granted':
+                    statusText = '✅ Granted - Browser notifications enabled';
+                    statusColor = 'var(--success-color)';
+                    break;
+                case 'denied':
+                    statusText = '❌ Denied - In-app notifications will be used';
+                    statusColor = 'var(--error-color)';
+                    break;
+                case 'default':
+                    statusText = '⏸️ Default - Permission not yet requested';
+                    statusColor = 'var(--warning-color)';
+                    break;
+                case 'unsupported':
+                    statusText = '⚠️ Unsupported - Browser does not support notifications';
+                    statusColor = 'var(--neutral-500)';
+                    break;
+            }
+            
+            statusEl.textContent = statusText;
+            statusEl.style.color = statusColor;
+        }
+        
+        // Request permission
+        document.getElementById('request-permission-btn').addEventListener('click', async () => {
+            const granted = await Platform.requestNotificationPermission();
+            console.log('Permission granted:', granted);
+            await updatePermissionStatus();
+        });
+        
+        // Check permission
+        document.getElementById('check-permission-btn').addEventListener('click', async () => {
+            await updatePermissionStatus();
+        });
+        
+        // Test browser notification
+        document.getElementById('test-browser-notification').addEventListener('click', async () => {
+            await Platform.createNotification({
+                title: 'Test Notification',
+                message: 'This is a test browser notification from AuraFlow',
+                iconUrl: '/icons/icon-192.png'
+            });
+        });
+        
+        // Test in-app notification (force it)
+        document.getElementById('test-inapp-notification').addEventListener('click', () => {
+            // Directly call the in-app notification function
+            showInAppNotification({
+                title: 'In-App Test',
+                message: 'This is a forced in-app notification for testing'
+            });
+        });
+        
+        // Test session complete notification
+        document.getElementById('test-session-complete').addEventListener('click', async () => {
+            await Platform.createNotification({
+                title: 'Session Complete! 🎉',
+                message: 'Great work! You completed a 25-minute focus session.',
+                iconUrl: '/icons/icon-192.png'
+            });
+        });
+        
+        // Simulate granted state
+        document.getElementById('test-granted').addEventListener('click', async () => {
+            console.log('Testing granted state...');
+            await Platform.createNotification({
+                title: 'Permission Granted Test',
+                message: 'This tests the notification when permission is granted',
+                iconUrl: '/icons/icon-192.png'
+            });
+        });
+        
+        // Simulate denied state
+        document.getElementById('test-denied').addEventListener('click', () => {
+            console.log('Testing denied state (forcing in-app notification)...');
+            showInAppNotification({
+                title: 'Permission Denied Test',
+                message: 'This shows the in-app fallback notification'
+            });
+        });
+        
+        // Helper function to show in-app notification (copied from web-platform-services.js)
+        function showInAppNotification(options) {
+            const notification = document.createElement('div');
+            notification.className = 'in-app-notification';
+            notification.setAttribute('role', 'alert');
+            notification.setAttribute('aria-live', 'assertive');
+            
+            notification.innerHTML = `
+                <div class="in-app-notification-content">
+                    <div class="in-app-notification-icon">🔔</div>
+                    <div class="in-app-notification-text">
+                        <div class="in-app-notification-title">${escapeHtml(options.title)}</div>
+                        <div class="in-app-notification-message">${escapeHtml(options.message)}</div>
+                    </div>
+                    <button class="in-app-notification-close" aria-label="Close notification">×</button>
+                </div>
+            `;
+            
+            document.body.appendChild(notification);
+            
+            const closeBtn = notification.querySelector('.in-app-notification-close');
+            closeBtn.addEventListener('click', () => {
+                notification.classList.add('hiding');
+                setTimeout(() => notification.remove(), 300);
+            });
+            
+            setTimeout(() => {
+                if (notification.parentElement) {
+                    notification.classList.add('hiding');
+                    setTimeout(() => notification.remove(), 300);
+                }
+            }, 5000);
+            
+            setTimeout(() => notification.classList.add('show'), 10);
+        }
+        
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+        
+        // Initialize
+        updatePermissionStatus();
+    </script>
+</body>
+</html>

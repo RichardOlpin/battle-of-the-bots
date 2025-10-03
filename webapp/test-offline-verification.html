@@ -1,0 +1,548 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AuraFlow - Offline Verification Test</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 12px;
+            padding: 30px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+        }
+        
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+            font-size: 28px;
+        }
+        
+        .subtitle {
+            color: #666;
+            margin-bottom: 30px;
+            font-size: 14px;
+        }
+        
+        .status-badge {
+            display: inline-block;
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+            margin-bottom: 20px;
+        }
+        
+        .status-online {
+            background: #10b981;
+            color: white;
+        }
+        
+        .status-offline {
+            background: #ef4444;
+            color: white;
+        }
+        
+        .button-group {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 30px;
+            flex-wrap: wrap;
+        }
+        
+        button {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .btn-primary {
+            background: #667eea;
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            background: #5568d3;
+            transform: translateY(-1px);
+        }
+        
+        .btn-secondary {
+            background: #e5e7eb;
+            color: #374151;
+        }
+        
+        .btn-secondary:hover {
+            background: #d1d5db;
+        }
+        
+        .btn-danger {
+            background: #ef4444;
+            color: white;
+        }
+        
+        .btn-danger:hover {
+            background: #dc2626;
+        }
+        
+        .results {
+            background: #f9fafb;
+            border-radius: 8px;
+            padding: 20px;
+            margin-top: 20px;
+            max-height: 500px;
+            overflow-y: auto;
+        }
+        
+        .test-item {
+            display: flex;
+            align-items: center;
+            padding: 12px;
+            margin-bottom: 8px;
+            background: white;
+            border-radius: 6px;
+            border-left: 4px solid #e5e7eb;
+        }
+        
+        .test-item.pass {
+            border-left-color: #10b981;
+        }
+        
+        .test-item.fail {
+            border-left-color: #ef4444;
+        }
+        
+        .test-icon {
+            font-size: 20px;
+            margin-right: 12px;
+        }
+        
+        .test-content {
+            flex: 1;
+        }
+        
+        .test-name {
+            font-weight: 600;
+            color: #111827;
+            margin-bottom: 4px;
+        }
+        
+        .test-details {
+            font-size: 12px;
+            color: #6b7280;
+        }
+        
+        .summary {
+            background: #667eea;
+            color: white;
+            padding: 20px;
+            border-radius: 8px;
+            margin-top: 20px;
+            text-align: center;
+        }
+        
+        .summary h3 {
+            margin-bottom: 10px;
+        }
+        
+        .summary-stats {
+            display: flex;
+            justify-content: center;
+            gap: 30px;
+            margin-top: 15px;
+        }
+        
+        .stat {
+            text-align: center;
+        }
+        
+        .stat-value {
+            font-size: 32px;
+            font-weight: bold;
+        }
+        
+        .stat-label {
+            font-size: 12px;
+            opacity: 0.9;
+        }
+        
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #6b7280;
+        }
+        
+        .spinner {
+            border: 3px solid #f3f4f6;
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .instructions {
+            background: #fef3c7;
+            border-left: 4px solid #f59e0b;
+            padding: 15px;
+            border-radius: 6px;
+            margin-bottom: 20px;
+        }
+        
+        .instructions h3 {
+            color: #92400e;
+            margin-bottom: 8px;
+            font-size: 14px;
+        }
+        
+        .instructions p {
+            color: #78350f;
+            font-size: 13px;
+            line-height: 1.5;
+        }
+        
+        .cache-list {
+            background: white;
+            border-radius: 6px;
+            padding: 15px;
+            margin-top: 10px;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+        
+        .cache-item {
+            padding: 8px;
+            border-bottom: 1px solid #e5e7eb;
+            font-size: 12px;
+            font-family: monospace;
+            color: #374151;
+        }
+        
+        .cache-item:last-child {
+            border-bottom: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔍 AuraFlow Offline Verification</h1>
+        <p class="subtitle">Automated testing tool for PWA offline functionality</p>
+        
+        <div id="online-status" class="status-badge status-online">
+            🟢 Online
+        </div>
+        
+        <div class="instructions">
+            <h3>📋 How to Use This Tool</h3>
+            <p>
+                1. Click "Run All Tests" to verify offline readiness<br>
+                2. Review the results below<br>
+                3. To test actual offline mode: Open DevTools > Network > Check "Offline" > Reload page<br>
+                4. For mobile testing, refer to the OFFLINE_TESTING_GUIDE.md
+            </p>
+        </div>
+        
+        <div class="button-group">
+            <button class="btn-primary" onclick="runAllTests()">▶️ Run All Tests</button>
+            <button class="btn-secondary" onclick="checkServiceWorker()">🔧 Check Service Worker</button>
+            <button class="btn-secondary" onclick="checkCache()">💾 Check Cache</button>
+            <button class="btn-secondary" onclick="showManualSteps()">📱 Manual Testing Steps</button>
+            <button class="btn-danger" onclick="clearResults()">🗑️ Clear Results</button>
+        </div>
+        
+        <div id="results-container"></div>
+    </div>
+    
+    <script>
+        let testResults = [];
+        
+        // Update online status
+        function updateOnlineStatus() {
+            const statusEl = document.getElementById('online-status');
+            if (navigator.onLine) {
+                statusEl.className = 'status-badge status-online';
+                statusEl.textContent = '🟢 Online';
+            } else {
+                statusEl.className = 'status-badge status-offline';
+                statusEl.textContent = '🔴 Offline';
+            }
+        }
+        
+        window.addEventListener('online', updateOnlineStatus);
+        window.addEventListener('offline', updateOnlineStatus);
+        updateOnlineStatus();
+        
+        // Test logging
+        function logTest(name, passed, details = '') {
+            testResults.push({ name, passed, details });
+            renderResults();
+        }
+        
+        function clearResults() {
+            testResults = [];
+            document.getElementById('results-container').innerHTML = '';
+        }
+        
+        function renderResults() {
+            const container = document.getElementById('results-container');
+            
+            if (testResults.length === 0) {
+                container.innerHTML = '';
+                return;
+            }
+            
+            const passed = testResults.filter(r => r.passed).length;
+            const total = testResults.length;
+            const percentage = Math.round((passed / total) * 100);
+            
+            let html = '<div class="results">';
+            
+            testResults.forEach(result => {
+                const icon = result.passed ? '✅' : '❌';
+                const className = result.passed ? 'pass' : 'fail';
+                html += `
+                    <div class="test-item ${className}">
+                        <div class="test-icon">${icon}</div>
+                        <div class="test-content">
+                            <div class="test-name">${result.name}</div>
+                            ${result.details ? `<div class="test-details">${result.details}</div>` : ''}
+                        </div>
+                    </div>
+                `;
+            });
+            
+            html += '</div>';
+            
+            // Add summary
+            html += `
+                <div class="summary">
+                    <h3>${percentage === 100 ? '🎉' : percentage >= 80 ? '⚠️' : '❌'} Test Results</h3>
+                    <div class="summary-stats">
+                        <div class="stat">
+                            <div class="stat-value">${passed}</div>
+                            <div class="stat-label">Passed</div>
+                        </div>
+                        <div class="stat">
+                            <div class="stat-value">${total - passed}</div>
+                            <div class="stat-label">Failed</div>
+                        </div>
+                        <div class="stat">
+                            <div class="stat-value">${percentage}%</div>
+                            <div class="stat-label">Success Rate</div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            container.innerHTML = html;
+        }
+        
+        function showLoading(message) {
+            const container = document.getElementById('results-container');
+            container.innerHTML = `
+                <div class="loading">
+                    <div class="spinner"></div>
+                    <p>${message}</p>
+                </div>
+            `;
+        }
+        
+        // Test functions
+        async function checkServiceWorker() {
+            clearResults();
+            showLoading('Checking Service Worker...');
+            
+            await new Promise(resolve => setTimeout(resolve, 500));
+            
+            const swSupported = 'serviceWorker' in navigator;
+            logTest('Service Worker API Supported', swSupported);
+            
+            if (!swSupported) return;
+            
+            const registration = await navigator.serviceWorker.getRegistration();
+            const swRegistered = !!registration;
+            logTest('Service Worker Registered', swRegistered, registration?.scope || 'Not registered');
+            
+            if (!swRegistered) return;
+            
+            const swActive = !!registration.active;
+            logTest('Service Worker Active', swActive, registration.active?.state || 'Not active');
+            
+            if (registration.active) {
+                const state = registration.active.state;
+                logTest('Service Worker State is "activated"', state === 'activated', `State: ${state}`);
+            }
+        }
+        
+        async function checkCache() {
+            clearResults();
+            showLoading('Checking Cache Storage...');
+            
+            await new Promise(resolve => setTimeout(resolve, 500));
+            
+            const cacheSupported = 'caches' in window;
+            logTest('Cache API Supported', cacheSupported);
+            
+            if (!cacheSupported) return;
+            
+            const cacheNames = await caches.keys();
+            const hasCaches = cacheNames.length > 0;
+            logTest('Caches Exist', hasCaches, `Found ${cacheNames.length} cache(s)`);
+            
+            if (!hasCaches) return;
+            
+            const auraflowCache = cacheNames.find(name => name.includes('auraflow'));
+            const hasAuraflowCache = !!auraflowCache;
+            logTest('AuraFlow Cache Exists', hasAuraflowCache, auraflowCache || 'Not found');
+            
+            if (!hasAuraflowCache) return;
+            
+            const cache = await caches.open(auraflowCache);
+            const cachedRequests = await cache.keys();
+            const cachedUrls = cachedRequests.map(req => new URL(req.url).pathname);
+            
+            const essentialAssets = [
+                '/index.html',
+                '/style.css',
+                '/app.js',
+                '/core-logic.js',
+                '/web-platform-services.js'
+            ];
+            
+            essentialAssets.forEach(asset => {
+                const isCached = cachedUrls.some(url => 
+                    url.includes(asset) || url === asset || (url === '/' && asset === '/index.html')
+                );
+                logTest(`Cached: ${asset}`, isCached);
+            });
+            
+            // Show cached files
+            const container = document.getElementById('results-container');
+            let cacheListHtml = '<div class="cache-list"><strong>Cached Files:</strong>';
+            cachedUrls.forEach(url => {
+                cacheListHtml += `<div class="cache-item">${url}</div>`;
+            });
+            cacheListHtml += '</div>';
+            container.innerHTML += cacheListHtml;
+        }
+        
+        async function checkLocalStorage() {
+            const lsSupported = typeof localStorage !== 'undefined';
+            logTest('LocalStorage Supported', lsSupported);
+            
+            if (!lsSupported) return;
+            
+            const keys = Object.keys(localStorage);
+            logTest('LocalStorage Has Data', keys.length > 0, `${keys.length} keys found`);
+        }
+        
+        async function checkCoreLogic() {
+            try {
+                const coreLogic = await import('./core-logic.js');
+                const hasCoreLogic = !!coreLogic;
+                logTest('Core Logic Module Loaded', hasCoreLogic);
+                
+                const essentialFunctions = [
+                    'startTimer',
+                    'pauseTimer',
+                    'resumeTimer',
+                    'stopTimer',
+                    'getTimerState',
+                    'formatTime'
+                ];
+                
+                essentialFunctions.forEach(fn => {
+                    const exists = typeof coreLogic[fn] === 'function';
+                    logTest(`Core Logic: ${fn}()`, exists);
+                });
+            } catch (error) {
+                logTest('Core Logic Module Loaded', false, error.message);
+            }
+        }
+        
+        async function runAllTests() {
+            clearResults();
+            showLoading('Running all tests...');
+            
+            await new Promise(resolve => setTimeout(resolve, 500));
+            
+            // Run all checks
+            await checkServiceWorker();
+            await checkCache();
+            await checkLocalStorage();
+            await checkCoreLogic();
+        }
+        
+        function showManualSteps() {
+            const container = document.getElementById('results-container');
+            container.innerHTML = `
+                <div class="results">
+                    <div style="padding: 20px;">
+                        <h3 style="margin-bottom: 15px;">📱 Manual Testing Steps</h3>
+                        
+                        <h4 style="margin-top: 20px; margin-bottom: 10px;">Desktop Browser Testing:</h4>
+                        <ol style="line-height: 1.8; padding-left: 20px;">
+                            <li>Open DevTools (F12)</li>
+                            <li>Go to Network tab</li>
+                            <li>Check "Offline" checkbox</li>
+                            <li>Reload the page (Cmd+R or Ctrl+R)</li>
+                            <li>Verify app loads and timer works</li>
+                        </ol>
+                        
+                        <h4 style="margin-top: 20px; margin-bottom: 10px;">Mobile Device Testing:</h4>
+                        <ol style="line-height: 1.8; padding-left: 20px;">
+                            <li>Install PWA to home screen</li>
+                            <li>Enable Airplane Mode</li>
+                            <li>Launch app from home screen</li>
+                            <li>Verify app loads from cache</li>
+                            <li>Start a focus session</li>
+                            <li>Verify timer works offline</li>
+                            <li>Disable Airplane Mode</li>
+                            <li>Verify app syncs when online</li>
+                        </ol>
+                        
+                        <h4 style="margin-top: 20px; margin-bottom: 10px;">Expected Offline Behavior:</h4>
+                        <ul style="line-height: 1.8; padding-left: 20px;">
+                            <li>✅ App loads from cache</li>
+                            <li>✅ Timer functionality works</li>
+                            <li>✅ Previously loaded events visible</li>
+                            <li>✅ Theme switching works</li>
+                            <li>❌ AI features show offline message</li>
+                            <li>❌ Cannot refresh events from server</li>
+                        </ul>
+                        
+                        <p style="margin-top: 20px; padding: 15px; background: #fef3c7; border-radius: 6px;">
+                            <strong>📖 For detailed testing instructions, see:</strong><br>
+                            <code>webapp/OFFLINE_TESTING_GUIDE.md</code>
+                        </p>
+                    </div>
+                </div>
+            `;
+        }
+    </script>
+</body>
+</html>

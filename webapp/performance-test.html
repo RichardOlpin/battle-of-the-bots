@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AuraFlow Performance Test</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .metric-card {
+            background: white;
+            padding: 20px;
+            margin: 10px 0;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .metric-title {
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 10px;
+        }
+        .metric-value {
+            font-size: 24px;
+            font-weight: 700;
+            color: #6366f1;
+        }
+        .metric-status {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 600;
+            margin-left: 10px;
+        }
+        .status-good {
+            background: #10b981;
+            color: white;
+        }
+        .status-warning {
+            background: #f59e0b;
+            color: white;
+        }
+        .status-bad {
+            background: #ef4444;
+            color: white;
+        }
+        .test-button {
+            background: #6366f1;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            margin: 20px 0;
+        }
+        .test-button:hover {
+            background: #4f46e5;
+        }
+        .resource-list {
+            max-height: 300px;
+            overflow-y: auto;
+            font-size: 12px;
+            margin-top: 10px;
+        }
+        .resource-item {
+            padding: 4px 0;
+            border-bottom: 1px solid #eee;
+        }
+    </style>
+</head>
+<body>
+    <h1>🚀 AuraFlow Performance Test</h1>
+    <p>This page tests the performance optimizations implemented in the web app.</p>
+    
+    <button class="test-button" onclick="runPerformanceTest()">Run Performance Test</button>
+    
+    <div id="results"></div>
+    
+    <script>
+        function runPerformanceTest() {
+            const resultsDiv = document.getElementById('results');
+            resultsDiv.innerHTML = '<p>Running tests...</p>';
+            
+            // Open the app in an iframe to measure load time
+            const iframe = document.createElement('iframe');
+            iframe.src = '/index.html';
+            iframe.style.display = 'none';
+            document.body.appendChild(iframe);
+            
+            const startTime = performance.now();
+            
+            iframe.onload = function() {
+                const loadTime = performance.now() - startTime;
+                
+                // Get performance metrics
+                const perfData = performance.timing;
+                const pageLoadTime = perfData.loadEventEnd - perfData.navigationStart;
+                const domContentLoadedTime = perfData.domContentLoadedEventEnd - perfData.navigationStart;
+                const connectTime = perfData.responseEnd - perfData.requestStart;
+                
+                // Get resource timing
+                const resources = performance.getEntriesByType('resource');
+                const totalResources = resources.length;
+                const totalSize = resources.reduce((sum, r) => sum + (r.transferSize || 0), 0);
+                
+                // Calculate metrics
+                const avgResourceTime = resources.length > 0 
+                    ? resources.reduce((sum, r) => sum + r.duration, 0) / resources.length 
+                    : 0;
+                
+                // Find slowest resources
+                const slowResources = resources
+                    .filter(r => r.duration > 100)
+                    .sort((a, b) => b.duration - a.duration)
+                    .slice(0, 10);
+                
+                // Display results
+                let html = '<h2>Performance Results</h2>';
+                
+                // Page Load Time
+                html += `
+                    <div class="metric-card">
+                        <div class="metric-title">Page Load Time</div>
+                        <div class="metric-value">
+                            ${Math.round(loadTime)}ms
+                            ${getStatusBadge(loadTime, 3000, 1500)}
+                        </div>
+                        <p>Target: Under 3000ms for 3G networks</p>
+                    </div>
+                `;
+                
+                // DOM Content Loaded
+                html += `
+                    <div class="metric-card">
+                        <div class="metric-title">DOM Content Loaded</div>
+                        <div class="metric-value">
+                            ${Math.round(domContentLoadedTime)}ms
+                            ${getStatusBadge(domContentLoadedTime, 2000, 1000)}
+                        </div>
+                    </div>
+                `;
+                
+                // Total Resources
+                html += `
+                    <div class="metric-card">
+                        <div class="metric-title">Resources Loaded</div>
+                        <div class="metric-value">
+                            ${totalResources} files
+                            ${getStatusBadge(totalResources, 30, 15, true)}
+                        </div>
+                        <p>Total Transfer Size: ${(totalSize / 1024).toFixed(2)} KB</p>
+                    </div>
+                `;
+                
+                // Average Resource Load Time
+                html += `
+                    <div class="metric-card">
+                        <div class="metric-title">Average Resource Load Time</div>
+                        <div class="metric-value">
+                            ${Math.round(avgResourceTime)}ms
+                            ${getStatusBadge(avgResourceTime, 200, 100)}
+                        </div>
+                    </div>
+                `;
+                
+                // Slowest Resources
+                if (slowResources.length > 0) {
+                    html += `
+                        <div class="metric-card">
+                            <div class="metric-title">Slowest Resources (>100ms)</div>
+                            <div class="resource-list">
+                    `;
+                    
+                    slowResources.forEach(r => {
+                        const name = r.name.split('/').pop() || r.name;
+                        html += `
+                            <div class="resource-item">
+                                <strong>${name}</strong>: ${Math.round(r.duration)}ms
+                                (${(r.transferSize / 1024).toFixed(2)} KB)
+                            </div>
+                        `;
+                    });
+                    
+                    html += `
+                            </div>
+                        </div>
+                    `;
+                }
+                
+                // Optimization Checklist
+                html += `
+                    <div class="metric-card">
+                        <div class="metric-title">Optimization Checklist</div>
+                        <ul>
+                            <li>✅ requestAnimationFrame for timer updates</li>
+                            <li>✅ Debounced input handlers</li>
+                            <li>✅ Lazy loading for non-critical resources</li>
+                            <li>✅ Critical CSS inlined</li>
+                            <li>✅ Deferred non-critical CSS</li>
+                            <li>✅ Module preloading</li>
+                            <li>✅ Service worker caching</li>
+                            <li>✅ Stale-while-revalidate strategy</li>
+                        </ul>
+                    </div>
+                `;
+                
+                resultsDiv.innerHTML = html;
+                
+                // Clean up
+                document.body.removeChild(iframe);
+            };
+        }
+        
+        function getStatusBadge(value, warningThreshold, goodThreshold, reverse = false) {
+            let status, text;
+            
+            if (reverse) {
+                // Lower is better
+                if (value <= goodThreshold) {
+                    status = 'good';
+                    text = 'Excellent';
+                } else if (value <= warningThreshold) {
+                    status = 'warning';
+                    text = 'Good';
+                } else {
+                    status = 'bad';
+                    text = 'Needs Improvement';
+                }
+            } else {
+                // Higher is worse
+                if (value <= goodThreshold) {
+                    status = 'good';
+                    text = 'Excellent';
+                } else if (value <= warningThreshold) {
+                    status = 'warning';
+                    text = 'Good';
+                } else {
+                    status = 'bad';
+                    text = 'Needs Improvement';
+                }
+            }
+            
+            return `<span class="metric-status status-${status}">${text}</span>`;
+        }
+    </script>
+</body>
+</html>

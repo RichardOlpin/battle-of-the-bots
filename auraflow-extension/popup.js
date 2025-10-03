@@ -1,6 +1,10 @@
 // Popup script for AuraFlow Calendar Extension
 // This file handles the popup UI logic and user interactions
 
+// Import core logic and platform services
+import * as CoreLogic from './core-logic.js';
+import * as Platform from './chrome-platform-services.js';
+
 // Global state management
 let currentScreen = 'auth';
 let isLoading = false;
@@ -71,15 +75,18 @@ document.addEventListener('DOMContentLoaded', function () {
 
     // Set up message listener for testing
     setupMessageListener();
-    
+
     // Initialize theme system
     initializeTheme();
-    
+
     // Initialize Quick Start feature
     initializeQuickStart();
-    
+
     // Set up session event listeners
     setupSessionEventListeners();
+
+    // Initialize Slack status control
+    initializeSlackStatus();
 
     // Restore any in-progress focus session
     restoreFocusTimerState();
@@ -91,7 +98,7 @@ async function initializePopup() {
 
     // Check authentication status on popup load
     await checkAuthenticationStatus();
-    
+
     // Load blocked sites list
     await loadBlockedSites();
 }
@@ -137,29 +144,48 @@ function setupEventListeners() {
         generateRitualBtn.addEventListener('click', handleGenerateRitual);
         generateRitualBtn.addEventListener('keydown', (e) => handleButtonKeydown(e, handleGenerateRitual));
     }
-    
+
     // Theme buttons are now directly in the main interface
-    
+
     // Quick Start button
     const quickStartBtn = document.getElementById('quick-start-button');
     if (quickStartBtn) {
         quickStartBtn.addEventListener('click', handleQuickStart);
         quickStartBtn.addEventListener('keydown', (e) => handleButtonKeydown(e, handleQuickStart));
     }
-    
+
     // Quick Focus button
     const quickFocusBtn = document.getElementById('quick-focus-btn');
     if (quickFocusBtn) {
         quickFocusBtn.addEventListener('click', handleQuickFocus);
         quickFocusBtn.addEventListener('keydown', (e) => handleButtonKeydown(e, handleQuickFocus));
     }
-    
+
     // Blocked sites save button
     const saveBlockedSitesBtn = document.getElementById('save-blocked-sites-button');
     if (saveBlockedSitesBtn) {
         saveBlockedSitesBtn.addEventListener('click', handleSaveBlockedSites);
         saveBlockedSitesBtn.addEventListener('keydown', (e) => handleButtonKeydown(e, handleSaveBlockedSites));
     }
+
+    // Slack status control buttons
+    const connectSlackBtn = document.getElementById('connect-slack-btn');
+    if (connectSlackBtn) {
+        connectSlackBtn.addEventListener('click', handleConnectSlack);
+        connectSlackBtn.addEventListener('keydown', (e) => handleButtonKeydown(e, handleConnectSlack));
+    }
+
+    const disconnectSlackBtn = document.getElementById('disconnect-slack-btn');
+    if (disconnectSlackBtn) {
+        disconnectSlackBtn.addEventListener('click', handleDisconnectSlack);
+        disconnectSlackBtn.addEventListener('keydown', (e) => handleButtonKeydown(e, handleDisconnectSlack));
+    }
+
+    const slackStatusButtons = document.querySelectorAll('.slack-status-btn');
+    slackStatusButtons.forEach(button => {
+        button.addEventListener('click', () => handleSlackStatusChange(button.dataset.status));
+        button.addEventListener('keydown', (e) => handleButtonKeydown(e, () => handleSlackStatusChange(button.dataset.status)));
+    });
 }
 
 // Handle keyboard events for buttons (Enter and Space)
@@ -693,17 +719,9 @@ function displaySampleEvents() {
     }
 }
 
-// Communication with service worker
+// Communication with service worker (using platform abstraction)
 function sendMessageToServiceWorker(message) {
-    return new Promise((resolve, reject) => {
-        chrome.runtime.sendMessage(message, (response) => {
-            if (chrome.runtime.lastError) {
-                reject(new Error(chrome.runtime.lastError.message));
-            } else {
-                resolve(response);
-            }
-        });
-    });
+    return Platform.sendMessageToServiceWorker(message);
 }
 
 // Check authentication status and show appropriate screen
@@ -781,347 +799,311 @@ function setupMessageListener() {
 // AI FEATURES INTEGRATION
 // ============================================================================
 
-// Backend API configuration
-const BACKEND_API_URL = 'http://localhost:3000';
-
 // Store current events for AI features
 let currentEvents = [];
 
 /**
  * Handle Find Focus Time button click
- * Fetches calendar events and calls backend scheduling API
+ * Analyzes calendar events to suggest optimal focus windows
  */
 async function handleFindFocusTime() {
     console.log('Find Focus Time clicked');
-    window.lastAIAction = 'focus'; // Track for retry functionality
-    
+    window.lastAIAction = 'focus';
+
     try {
-        // Show loading state
-        showAILoading('Finding optimal focus time...');
-        
-        // Get current calendar events with timeout
-        const response = await Promise.race([
-            sendMessageToServiceWorker({ action: 'fetchEvents' }),
-            new Promise((_, reject) => setTimeout(() => reject(new Error('Request timeout')), 10000))
-        ]);
-        
+        showAILoading('Analyzing your calendar...');
+
+        // Get calendar events
+        const response = await sendMessageToServiceWorker({ action: 'fetchEvents' });
         if (!response || !response.success) {
             throw new Error(response?.error || 'Failed to fetch calendar events');
         }
-        
+
         const events = Array.isArray(response.data) ? response.data : [];
-        currentEvents = events;
-        
-        // Transform and validate events
-        const calendarEvents = events
-            .filter(event => event && event.start && event.end)
-            .map(event => {
-                try {
-                    return {
-                        id: event.id || `event-${Date.now()}`,
-                        startTime: event.start.dateTime || event.start.date,
-                        endTime: event.end.dateTime || event.end.date,
-                        title: (event.summary || 'Untitled Event').substring(0, 200) // Limit title length
-                    };
-                } catch (err) {
-                    console.warn('Skipping invalid event:', err);
-                    return null;
-                }
-            })
-            .filter(event => event !== null);
-        
-        // Determine time of day for preferences
-        const now = new Date();
-        const hour = now.getHours();
-        let preferredTime = 'afternoon';
-        if (hour >= 6 && hour < 12) {
-            preferredTime = 'morning';
-        } else if (hour >= 17 && hour < 21) {
-            preferredTime = 'evening';
-        }
-        
-        // Call backend scheduling API with timeout
-        const focusWindow = await Promise.race([
-            callSchedulingAPI(calendarEvents, {
-                preferredTime: preferredTime,
-                minimumDuration: 75,
-                bufferTime: 15
-            }),
-            new Promise((_, reject) => setTimeout(() => reject(new Error('Backend timeout')), 15000))
-        ]);
-        
-        // Validate response
-        if (focusWindow && typeof focusWindow === 'object') {
-            displayFocusTimeResult(focusWindow);
-        } else {
-            displayFocusTimeResult(null);
-        }
-        
+
+        // Analyze events and find optimal focus time
+        const focusWindow = analyzeCalendarForFocus(events);
+        displayFocusTimeResult(focusWindow);
+
     } catch (error) {
         console.error('Find Focus Time error:', error);
-        let errorMessage = 'Failed to find focus time';
-        
-        if (error.message.includes('timeout')) {
-            errorMessage = 'Request timed out. Please check your connection and try again.';
-        } else if (error.message.includes('fetch')) {
-            errorMessage = 'Network error. Please ensure the backend server is running.';
-        } else if (error.message) {
-            errorMessage = `Failed to find focus time: ${error.message}`;
-        }
-        
-        showAIError(errorMessage);
+        showAIError('Failed to analyze calendar. Please try again.');
     }
 }
 
 /**
  * Handle Generate Ritual button click
- * Analyzes calendar and calls backend ritual generation API
+ * Creates personalized work rituals based on calendar context
  */
 async function handleGenerateRitual() {
     console.log('Generate Ritual clicked');
-    window.lastAIAction = 'ritual'; // Track for retry functionality
-    
+    window.lastAIAction = 'ritual';
+
     try {
-        // Show loading state
-        showAILoading('Generating personalized ritual...');
-        
-        // Get current calendar events if not already loaded
-        if (!Array.isArray(currentEvents) || currentEvents.length === 0) {
-            try {
-                const response = await Promise.race([
-                    sendMessageToServiceWorker({ action: 'fetchEvents' }),
-                    new Promise((_, reject) => setTimeout(() => reject(new Error('Fetch timeout')), 10000))
-                ]);
-                
-                if (response && response.success && Array.isArray(response.data)) {
-                    currentEvents = response.data;
-                } else {
-                    currentEvents = [];
-                }
-            } catch (err) {
-                console.warn('Could not fetch events, using empty array:', err);
-                currentEvents = [];
-            }
-        }
-        
-        // Determine context from calendar
-        const now = new Date();
-        const hour = now.getHours();
-        
-        let timeOfDay = 'afternoon';
-        if (hour >= 6 && hour < 12) {
-            timeOfDay = 'morning';
-        } else if (hour >= 17 && hour < 21) {
-            timeOfDay = 'evening';
-        }
-        
-        // Calculate calendar density safely
-        const eventsToday = Array.isArray(currentEvents) ? currentEvents.length : 0;
-        let calendarDensity = 'clear';
-        if (eventsToday >= 5) {
-            calendarDensity = 'busy';
-        } else if (eventsToday >= 3) {
-            calendarDensity = 'moderate';
-        }
-        
-        // Get next event title for context
-        let calendarEventTitle = 'Focus session';
-        if (Array.isArray(currentEvents) && currentEvents.length > 0) {
-            try {
-                const nextEvent = currentEvents.find(event => {
-                    if (!event || !event.start) return false;
-                    try {
-                        const eventTime = new Date(event.start.dateTime || event.start.date);
-                        return !isNaN(eventTime.getTime()) && eventTime > now;
-                    } catch (err) {
-                        return false;
-                    }
-                });
-                
-                if (nextEvent && nextEvent.summary) {
-                    // Sanitize and limit title length
-                    calendarEventTitle = String(nextEvent.summary).substring(0, 200);
-                }
-            } catch (err) {
-                console.warn('Error finding next event:', err);
-            }
-        }
-        
-        // Call backend ritual generation API with timeout
-        const ritual = await Promise.race([
-            callRitualAPI({
-                calendarEventTitle: calendarEventTitle,
-                timeOfDay: timeOfDay,
-                calendarDensity: calendarDensity
-            }),
-            new Promise((_, reject) => setTimeout(() => reject(new Error('Backend timeout')), 15000))
-        ]);
-        
-        // Validate ritual response
-        if (ritual && typeof ritual === 'object' && ritual.name) {
-            displayRitualResult(ritual);
-            
-            // Save ritual for Quick Start
-            saveSessionSettings({
-                ritual: ritual,
-                soundscape: ritual.suggestedSoundscape || 'rain',
-                timestamp: Date.now()
-            });
-            
-            // Update Quick Start button
-            updateQuickStartButton();
-        } else {
-            throw new Error('Invalid ritual response from server');
-        }
-        
+        showAILoading('Creating your personalized ritual...');
+
+        // Get calendar events for context
+        const response = await sendMessageToServiceWorker({ action: 'fetchEvents' });
+        const events = response?.success ? response.data : [];
+
+        // Generate ritual based on current context
+        const ritual = generatePersonalizedRitual(events);
+        displayRitualResult(ritual);
+
     } catch (error) {
         console.error('Generate Ritual error:', error);
-        let errorMessage = 'Failed to generate ritual';
-        
-        if (error.message.includes('timeout')) {
-            errorMessage = 'Request timed out. Please check your connection and try again.';
-        } else if (error.message.includes('fetch')) {
-            errorMessage = 'Network error. Please ensure the backend server is running.';
-        } else if (error.message) {
-            errorMessage = `Failed to generate ritual: ${error.message}`;
-        }
-        
-        showAIError(errorMessage);
+        showAIError('Failed to generate ritual. Please try again.');
     }
 }
 
 /**
- * Call backend scheduling API
- * @param {Array} calendarEvents - Array of calendar events
- * @param {Object} userPreferences - User preferences for scheduling
- * @returns {Promise<Object>} Focus window suggestion
+ * Analyze calendar events to find optimal focus windows
+ * @param {Array} events - Calendar events
+ * @returns {Object|null} Focus window suggestion
  */
-async function callSchedulingAPI(calendarEvents, userPreferences) {
-    // Validate inputs
-    if (!Array.isArray(calendarEvents)) {
-        throw new Error('Invalid calendar events data');
+function analyzeCalendarForFocus(events) {
+    const now = new Date();
+    const endOfDay = new Date(now);
+    endOfDay.setHours(18, 0, 0, 0); // End analysis at 6 PM
+
+    // If no events or empty calendar, suggest immediate focus time
+    if (!events || events.length === 0) {
+        const duration = 90; // Default 90-minute session
+        const endTime = new Date(now.getTime() + duration * 60 * 1000);
+
+        return {
+            startTime: now.toISOString(),
+            endTime: endTime.toISOString(),
+            duration: duration,
+            score: 100,
+            reasoning: "Perfect! Your calendar is completely free. This is an ideal time for deep, uninterrupted focus work."
+        };
     }
-    
-    if (!userPreferences || typeof userPreferences !== 'object') {
-        throw new Error('Invalid user preferences');
+
+    // Parse and sort events
+    const todayEvents = events
+        .filter(event => event && event.start)
+        .map(event => ({
+            start: new Date(event.start.dateTime || event.start.date),
+            end: new Date(event.end.dateTime || event.end.date),
+            title: event.summary || 'Event'
+        }))
+        .filter(event => event.start >= now && event.start <= endOfDay)
+        .sort((a, b) => a.start - b.start);
+
+    // If no events today, suggest immediate focus time
+    if (todayEvents.length === 0) {
+        const duration = 90;
+        const endTime = new Date(now.getTime() + duration * 60 * 1000);
+
+        return {
+            startTime: now.toISOString(),
+            endTime: endTime.toISOString(),
+            duration: duration,
+            score: 95,
+            reasoning: "Excellent! No events scheduled for today. You have complete freedom to focus on your most important work."
+        };
     }
-    
-    try {
-        const response = await fetch(`${BACKEND_API_URL}/api/schedule/suggest`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Accept': 'application/json'
-            },
-            body: JSON.stringify({
-                calendarEvents: calendarEvents,
-                userPreferences: userPreferences
-            }),
-            signal: AbortSignal.timeout(15000) // 15 second timeout
+
+    // Find gaps between events
+    const gaps = [];
+    let currentTime = new Date(Math.max(now.getTime(), now.getTime()));
+
+    // Check if there's time before the first event
+    if (todayEvents[0].start - currentTime >= 45 * 60 * 1000) {
+        gaps.push({
+            start: new Date(currentTime),
+            end: new Date(todayEvents[0].start),
+            duration: Math.floor((todayEvents[0].start - currentTime) / (60 * 1000))
         });
-        
-        if (!response.ok) {
-            let errorMessage = 'Scheduling API request failed';
-            try {
-                const errorData = await response.json();
-                errorMessage = errorData.error?.message || errorMessage;
-            } catch (parseError) {
-                errorMessage = `Server error: ${response.status} ${response.statusText}`;
-            }
-            throw new Error(errorMessage);
-        }
-        
-        const data = await response.json();
-        
-        // Validate response structure
-        if (data === null) {
-            return null; // No focus window found
-        }
-        
-        if (typeof data !== 'object') {
-            throw new Error('Invalid response format from server');
-        }
-        
-        return data;
-        
-    } catch (error) {
-        console.error('Scheduling API error:', error);
-        
-        if (error.name === 'AbortError') {
-            throw new Error('Request timeout - server took too long to respond');
-        }
-        
-        if (error.message.includes('Failed to fetch')) {
-            throw new Error('Network error - cannot reach backend server');
-        }
-        
-        throw error;
     }
+
+    // Check gaps between events
+    for (let i = 0; i < todayEvents.length - 1; i++) {
+        const currentEvent = todayEvents[i];
+        const nextEvent = todayEvents[i + 1];
+
+        if (nextEvent.start - currentEvent.end >= 45 * 60 * 1000) {
+            gaps.push({
+                start: new Date(currentEvent.end),
+                end: new Date(nextEvent.start),
+                duration: Math.floor((nextEvent.start - currentEvent.end) / (60 * 1000))
+            });
+        }
+    }
+
+    // Check if there's time after the last event
+    const lastEvent = todayEvents[todayEvents.length - 1];
+    if (endOfDay - lastEvent.end >= 45 * 60 * 1000) {
+        gaps.push({
+            start: new Date(lastEvent.end),
+            end: new Date(endOfDay),
+            duration: Math.floor((endOfDay - lastEvent.end) / (60 * 1000))
+        });
+    }
+
+    if (gaps.length === 0) {
+        return null; // No suitable gaps found
+    }
+
+    // Score gaps based on duration and time of day
+    const scoredGaps = gaps.map(gap => {
+        let score = Math.min(gap.duration, 120); // Base score from duration (max 120)
+
+        // Time of day bonus
+        const hour = gap.start.getHours();
+        if (hour >= 9 && hour <= 11) score += 20; // Morning focus bonus
+        if (hour >= 14 && hour <= 16) score += 15; // Afternoon focus bonus
+        if (hour >= 8 && hour <= 17) score += 10; // Work hours bonus
+
+        // Duration bonus for longer sessions
+        if (gap.duration >= 90) score += 15;
+        if (gap.duration >= 120) score += 10;
+
+        return { ...gap, score };
+    });
+
+    // Return best gap
+    const bestGap = scoredGaps.reduce((best, current) =>
+        current.score > best.score ? current : best
+    );
+
+    // Suggest 75-90 minute session within the gap
+    const suggestedDuration = Math.min(90, Math.max(75, bestGap.duration - 15));
+    const endTime = new Date(bestGap.start.getTime() + suggestedDuration * 60 * 1000);
+
+    return {
+        startTime: bestGap.start.toISOString(),
+        endTime: endTime.toISOString(),
+        duration: suggestedDuration,
+        score: Math.min(100, bestGap.score),
+        reasoning: generateFocusReasoning(bestGap, todayEvents.length)
+    };
 }
 
 /**
- * Call backend ritual generation API
- * @param {Object} context - Context for ritual generation
- * @returns {Promise<Object>} Generated ritual
+ * Generate reasoning text for focus time suggestion
  */
-async function callRitualAPI(context) {
-    // Validate input
-    if (!context || typeof context !== 'object') {
-        throw new Error('Invalid context data');
+function generateFocusReasoning(gap, eventCount) {
+    const hour = gap.start.getHours();
+    const timeOfDay = hour < 12 ? 'morning' : hour < 17 ? 'afternoon' : 'evening';
+
+    let reasoning = `This ${gap.duration}-minute window in the ${timeOfDay} provides `;
+
+    if (gap.duration >= 120) {
+        reasoning += 'excellent space for deep work with minimal interruptions.';
+    } else if (gap.duration >= 90) {
+        reasoning += 'good opportunity for focused work before your next commitment.';
+    } else {
+        reasoning += 'a solid block for concentrated effort.';
     }
-    
-    try {
-        const response = await fetch(`${BACKEND_API_URL}/api/ritual/generate`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Accept': 'application/json'
+
+    if (eventCount <= 2) {
+        reasoning += ' Your light schedule today allows for sustained focus.';
+    } else if (eventCount <= 4) {
+        reasoning += ' Despite a moderate schedule, this gap offers quality focus time.';
+    } else {
+        reasoning += ' This is your best available window in a busy day.';
+    }
+
+    return reasoning;
+}
+
+/**
+ * Generate personalized ritual based on calendar context
+ * @param {Array} events - Calendar events for context
+ * @returns {Object} Generated ritual
+ */
+function generatePersonalizedRitual(events) {
+    const now = new Date();
+    const hour = now.getHours();
+    const eventCount = events ? events.length : 0;
+
+    // Determine context
+    const timeOfDay = hour < 12 ? 'morning' : hour < 17 ? 'afternoon' : 'evening';
+    const calendarDensity = eventCount <= 2 ? 'light' : eventCount <= 4 ? 'moderate' : 'busy';
+
+    // Ritual templates based on context
+    const rituals = {
+        morning: {
+            light: {
+                name: 'Morning Flow',
+                workDuration: 90,
+                breakDuration: 15,
+                description: 'Start your day with extended deep work when your mind is fresh and your schedule is open.',
+                suggestedSoundscape: 'forest'
             },
-            body: JSON.stringify({ context: context }),
-            signal: AbortSignal.timeout(15000) // 15 second timeout
-        });
-        
-        if (!response.ok) {
-            let errorMessage = 'Ritual API request failed';
-            try {
-                const errorData = await response.json();
-                errorMessage = errorData.error?.message || errorMessage;
-            } catch (parseError) {
-                errorMessage = `Server error: ${response.status} ${response.statusText}`;
+            moderate: {
+                name: 'Morning Sprint',
+                workDuration: 75,
+                breakDuration: 10,
+                description: 'Efficient focused work session designed for productive mornings with upcoming commitments.',
+                suggestedSoundscape: 'cafe'
+            },
+            busy: {
+                name: 'Morning Burst',
+                workDuration: 50,
+                breakDuration: 10,
+                description: 'Quick but effective focus session to tackle priorities before a packed day begins.',
+                suggestedSoundscape: 'white-noise'
             }
-            throw new Error(errorMessage);
-        }
-        
-        const data = await response.json();
-        
-        // Validate response structure
-        if (!data || typeof data !== 'object') {
-            throw new Error('Invalid response format from server');
-        }
-        
-        // Validate required ritual properties
-        const requiredProps = ['name', 'workDuration', 'breakDuration', 'mindfulnessBreaks', 'description'];
-        for (const prop of requiredProps) {
-            if (!(prop in data)) {
-                throw new Error(`Missing required property: ${prop}`);
+        },
+        afternoon: {
+            light: {
+                name: 'Afternoon Deep Dive',
+                workDuration: 85,
+                breakDuration: 15,
+                description: 'Sustained afternoon focus session perfect for complex tasks and creative work.',
+                suggestedSoundscape: 'rain'
+            },
+            moderate: {
+                name: 'Afternoon Focus',
+                workDuration: 70,
+                breakDuration: 12,
+                description: 'Balanced work session that fits well between your afternoon commitments.',
+                suggestedSoundscape: 'nature'
+            },
+            busy: {
+                name: 'Power Hour',
+                workDuration: 60,
+                breakDuration: 8,
+                description: 'Concentrated effort designed to maximize productivity in limited time.',
+                suggestedSoundscape: 'waves'
+            }
+        },
+        evening: {
+            light: {
+                name: 'Evening Reflection',
+                workDuration: 75,
+                breakDuration: 20,
+                description: 'Thoughtful evening session with extended breaks for reflection and planning.',
+                suggestedSoundscape: 'rain'
+            },
+            moderate: {
+                name: 'Evening Wind-Down',
+                workDuration: 60,
+                breakDuration: 15,
+                description: 'Gentle evening focus with mindful breaks to transition toward rest.',
+                suggestedSoundscape: 'forest'
+            },
+            busy: {
+                name: 'Evening Wrap-Up',
+                workDuration: 45,
+                breakDuration: 10,
+                description: 'Quick evening session to complete essential tasks before day\'s end.',
+                suggestedSoundscape: 'cafe'
             }
         }
-        
-        return data;
-        
-    } catch (error) {
-        console.error('Ritual API error:', error);
-        
-        if (error.name === 'AbortError') {
-            throw new Error('Request timeout - server took too long to respond');
-        }
-        
-        if (error.message.includes('Failed to fetch')) {
-            throw new Error('Network error - cannot reach backend server');
-        }
-        
-        throw error;
-    }
+    };
+
+    const selectedRitual = rituals[timeOfDay][calendarDensity];
+
+    return {
+        ...selectedRitual,
+        mindfulnessBreaks: calendarDensity !== 'busy', // More mindful when less busy
+        timeOfDay,
+        calendarDensity
+    };
 }
 
 /**
@@ -1131,7 +1113,7 @@ async function callRitualAPI(context) {
 function displayFocusTimeResult(result) {
     const aiResults = document.getElementById('ai-results');
     if (!aiResults) return;
-    
+
     // Check if no focus window found
     if (!result || !result.startTime) {
         aiResults.innerHTML = `
@@ -1143,26 +1125,29 @@ function displayFocusTimeResult(result) {
                 <div class="focus-reasoning">
                     No suitable focus windows found in your calendar today. Your schedule is quite full! Consider blocking time tomorrow or finding a shorter 30-minute slot for a quick focus session.
                 </div>
-                <button class="close-results-btn" onclick="hideAIResults()" aria-label="Close results">×</button>
+                <button class="close-results-btn" data-action="close-results" aria-label="Close results">×</button>
             </div>
         `;
         aiResults.classList.remove('hidden');
+
+        // Add event listeners for dynamic buttons
+        addAIResultsEventListeners();
         return;
     }
-    
+
     // Format times for display
     const startTime = new Date(result.startTime);
     const endTime = new Date(result.endTime);
-    
+
     const timeFormat = {
         hour: 'numeric',
         minute: '2-digit',
         hour12: true
     };
-    
+
     const startTimeStr = startTime.toLocaleTimeString('en-US', timeFormat);
     const endTimeStr = endTime.toLocaleTimeString('en-US', timeFormat);
-    
+
     aiResults.innerHTML = `
         <div class="focus-time-result">
             <div class="focus-time-header">
@@ -1180,16 +1165,19 @@ function displayFocusTimeResult(result) {
             ${result.reasoning ? `
                 <div class="focus-reasoning">${escapeHtml(result.reasoning)}</div>
             ` : ''}
-            <button class="start-session-btn" onclick="startFocusSession(${result.duration})">
+            <button class="start-session-btn" data-action="start-session" data-duration="${result.duration}">
                 <span>🚀</span>
                 Start Focus Session
             </button>
-            <button class="close-results-btn" onclick="hideAIResults()" aria-label="Close results">×</button>
+            <button class="close-results-btn" data-action="close-results" aria-label="Close results">×</button>
         </div>
     `;
-    
+
     aiResults.classList.remove('hidden');
     announceToScreenReader(`Optimal focus window found from ${startTimeStr} to ${endTimeStr}`);
+
+    // Add event listeners for dynamic buttons
+    addAIResultsEventListeners();
 }
 
 /**
@@ -1199,7 +1187,7 @@ function displayFocusTimeResult(result) {
 function displayRitualResult(ritual) {
     const aiResults = document.getElementById('ai-results');
     if (!aiResults) return;
-    
+
     // Get soundscape icon
     const soundscapeIcons = {
         'rain': '🌧️',
@@ -1214,9 +1202,9 @@ function displayRitualResult(ritual) {
         'ambient-orchestral': '🎼',
         'positive-affirmation': '🌅'
     };
-    
+
     const soundscapeIcon = soundscapeIcons[ritual.suggestedSoundscape?.toLowerCase()] || '🎵';
-    
+
     aiResults.innerHTML = `
         <div class="ritual-result">
             <div class="ritual-header">
@@ -1249,17 +1237,20 @@ function displayRitualResult(ritual) {
                         <span>Recommended: ${escapeHtml(ritual.suggestedSoundscape)}</span>
                     </div>
                 ` : ''}
-                <button class="use-ritual-btn" onclick="useRitual('${escapeHtml(ritual.name)}', ${ritual.workDuration}, ${ritual.breakDuration}, '${ritual.suggestedSoundscape || 'rain'}')">
+                <button class="use-ritual-btn" data-action="use-ritual" data-name="${escapeHtml(ritual.name)}" data-work="${ritual.workDuration}" data-break="${ritual.breakDuration}" data-soundscape="${ritual.suggestedSoundscape || 'rain'}">
                     <span>🚀</span>
                     Use This Ritual
                 </button>
             </div>
-            <button class="close-results-btn" onclick="hideAIResults()" aria-label="Close results">×</button>
+            <button class="close-results-btn" data-action="close-results" aria-label="Close results">×</button>
         </div>
     `;
-    
+
     aiResults.classList.remove('hidden');
     announceToScreenReader(`Ritual generated: ${ritual.name}`);
+
+    // Add event listeners for dynamic buttons
+    addAIResultsEventListeners();
 }
 
 /**
@@ -1269,7 +1260,7 @@ function displayRitualResult(ritual) {
 function showAILoading(message) {
     const aiResults = document.getElementById('ai-results');
     if (!aiResults) return;
-    
+
     aiResults.innerHTML = `
         <div class="ai-loading">
             <div class="ai-spinner"></div>
@@ -1286,16 +1277,16 @@ function showAILoading(message) {
 function showAIError(message) {
     const aiResults = document.getElementById('ai-results');
     if (!aiResults) return;
-    
+
     aiResults.innerHTML = `
         <div class="ai-error">
             <div class="ai-error-icon">⚠️</div>
             <div class="ai-error-message">${escapeHtml(message)}</div>
-            <button class="retry-ai-btn" onclick="retryLastAIAction()">
+            <button class="retry-ai-btn" data-action="retry-ai">
                 <span>🔄</span>
                 Try Again
             </button>
-            <button class="close-results-btn" onclick="hideAIResults()" aria-label="Close results">×</button>
+            <button class="close-results-btn" data-action="close-results" aria-label="Close results">×</button>
         </div>
     `;
     aiResults.classList.remove('hidden');
@@ -1311,7 +1302,7 @@ function setupSessionEventListeners() {
     if (sessionContainer) {
         // Add mouse movement listener
         sessionContainer.addEventListener('mousemove', handleMouseActivity);
-        
+
         // Add button event listeners
         const pauseBtn = document.getElementById('pause-btn');
         const stopBtn = document.getElementById('stop-btn');
@@ -1326,6 +1317,7 @@ function setupSessionEventListeners() {
             pauseBtn.addEventListener('click', handlePauseSession);
             pauseBtn.addEventListener('keydown', (e) => handleButtonKeydown(e, handlePauseSession));
         }
+
 
         if (stopBtn) {
             stopBtn.addEventListener('click', handleStopSession);
@@ -1353,13 +1345,13 @@ function setupSessionEventListeners() {
 function handleMouseActivity() {
     const sessionContainer = document.querySelector('.session-container');
     if (!sessionContainer) return;
-    
+
     // Add active class to show controls
     sessionContainer.classList.add('mouse-active');
-    
+
     // Clear any existing timer
     clearTimeout(mouseActivityTimer);
-    
+
     // Set timer to hide controls after delay
     mouseActivityTimer = setTimeout(() => {
         sessionContainer.classList.remove('mouse-active');
@@ -1369,12 +1361,12 @@ function handleMouseActivity() {
 // Function to show session screen
 function showSessionScreen() {
     showScreen('session');
-    
+
     // Initialize with active controls, then fade out
     const sessionContainer = document.querySelector('.session-container');
     if (sessionContainer) {
         sessionContainer.classList.add('mouse-active');
-        
+
         // Set timer to hide controls after delay
         mouseActivityTimer = setTimeout(() => {
             sessionContainer.classList.remove('mouse-active');
@@ -1857,16 +1849,19 @@ function stopFocusAudio() {
 // ============================================================================
 
 // Initialize theme system
-function initializeTheme() {
+async function initializeTheme() {
     // Load saved theme from storage
-    chrome.storage.sync.get(['auraflow_theme'], function(result) {
-        if (result.auraflow_theme) {
-            applyTheme(result.auraflow_theme);
+    try {
+        const theme = await Platform.getData('auraflow_theme');
+        if (theme) {
+            applyTheme(theme);
             // Update active state on theme buttons
-            updateThemeButtonStates(result.auraflow_theme);
+            updateThemeButtonStates(theme);
         }
-    });
-    
+    } catch (error) {
+        console.error('Error loading theme:', error);
+    }
+
     // Set up theme button event listeners
     setupThemeButtons();
 }
@@ -1878,27 +1873,27 @@ function setupThemeButtons() {
     const calmBtn = document.getElementById('theme-calm-button');
     const beachBtn = document.getElementById('theme-beach-button');
     const rainBtn = document.getElementById('theme-rain-button');
-    
+
     if (lightBtn) {
         lightBtn.addEventListener('click', () => switchTheme('light'));
         lightBtn.addEventListener('keydown', (e) => handleButtonKeydown(e, () => switchTheme('light')));
     }
-    
+
     if (darkBtn) {
         darkBtn.addEventListener('click', () => switchTheme('dark'));
         darkBtn.addEventListener('keydown', (e) => handleButtonKeydown(e, () => switchTheme('dark')));
     }
-    
+
     if (calmBtn) {
         calmBtn.addEventListener('click', () => switchTheme('calm'));
         calmBtn.addEventListener('keydown', (e) => handleButtonKeydown(e, () => switchTheme('calm')));
     }
-    
+
     if (beachBtn) {
         beachBtn.addEventListener('click', () => switchTheme('beach'));
         beachBtn.addEventListener('keydown', (e) => handleButtonKeydown(e, () => switchTheme('beach')));
     }
-    
+
     if (rainBtn) {
         rainBtn.addEventListener('click', () => switchTheme('rain'));
         rainBtn.addEventListener('keydown', (e) => handleButtonKeydown(e, () => switchTheme('rain')));
@@ -1906,15 +1901,19 @@ function setupThemeButtons() {
 }
 
 // Switch theme
-function switchTheme(theme) {
+async function switchTheme(theme) {
     applyTheme(theme);
-    
+
     // Save theme preference
-    chrome.storage.sync.set({ 'auraflow_theme': theme });
-    
+    try {
+        await Platform.saveData('auraflow_theme', theme);
+    } catch (error) {
+        console.error('Error saving theme:', error);
+    }
+
     // Update active state on buttons
     updateThemeButtonStates(theme);
-    
+
     // Announce theme change to screen readers
     announceToScreenReader(`Theme changed to ${theme}`);
 }
@@ -1922,16 +1921,60 @@ function switchTheme(theme) {
 // Apply theme to document
 function applyTheme(theme) {
     // Remove all theme classes
-    document.body.classList.remove('theme-dark', 'theme-calm');
-    
-    // Add appropriate theme class
-    if (theme === 'dark') {
-        document.body.classList.add('theme-dark');
-    } else if (theme === 'calm') {
-        document.body.classList.add('theme-calm');
-    }
-    
+    document.body.classList.remove('theme-light', 'theme-dark', 'theme-calm', 'theme-beach', 'theme-rain');
+
+    // Add new theme class
+    document.body.classList.add(`theme-${theme}`);
+
+    // Update background animations
+    updateBackgroundAnimation(theme);
+
     currentTheme = theme;
+}
+
+/**
+ * Update background animations based on theme
+ * @param {string} theme - The selected theme
+ */
+function updateBackgroundAnimation(theme) {
+    const rainBg = document.getElementById('rain-background');
+    const wavesBg = document.getElementById('waves-background');
+
+    // Hide all animations first
+    if (rainBg) rainBg.classList.remove('active');
+    if (wavesBg) wavesBg.classList.remove('active');
+
+    // Show appropriate animation
+    if (theme === 'rain' && rainBg) {
+        rainBg.classList.add('active');
+        generateRainDrops();
+    } else if (theme === 'beach' && wavesBg) {
+        wavesBg.classList.add('active');
+    }
+}
+
+/**
+ * Generate rain drops animation
+ */
+function generateRainDrops() {
+    const rainContainer = document.getElementById('rain-background');
+    if (!rainContainer) return;
+
+    // Clear existing drops
+    rainContainer.innerHTML = '';
+
+    // Generate 60 rain drops
+    for (let i = 0; i < 60; i++) {
+        const drop = document.createElement('div');
+        drop.className = 'rain-drop';
+
+        // Random positioning and timing
+        drop.style.left = Math.random() * 100 + '%';
+        drop.style.animationDuration = (Math.random() * 1.5 + 0.5) + 's';
+        drop.style.animationDelay = Math.random() * 2 + 's';
+
+        rainContainer.appendChild(drop);
+    }
 }
 
 // Update active state on theme buttons
@@ -1940,7 +1983,7 @@ function updateThemeButtonStates(activeTheme) {
     themeButtons.forEach(button => {
         button.classList.remove('active');
     });
-    
+
     const activeButton = document.getElementById(`theme-${activeTheme}-button`);
     if (activeButton) {
         activeButton.classList.add('active');
@@ -1957,27 +2000,30 @@ function updateInitialThemeState() {
 // ============================================================================
 
 // Initialize Quick Start feature
-function initializeQuickStart() {
+async function initializeQuickStart() {
     // Load saved session settings from storage
-    chrome.storage.sync.get(['auraflow_last_session'], function(result) {
-        if (result.auraflow_last_session) {
-            lastSessionSettings = result.auraflow_last_session;
+    try {
+        const settings = await Platform.getData('auraflow_last_session');
+        if (settings) {
+            lastSessionSettings = settings;
             updateQuickStartButton();
         }
-    });
+    } catch (error) {
+        console.error('Error loading Quick Start settings:', error);
+    }
 }
 
 // Update Quick Start button visibility and text
 function updateQuickStartButton() {
     const quickStartBtn = document.getElementById('quick-start-button');
     const quickStartDesc = document.getElementById('quick-start-description');
-    
+
     if (!quickStartBtn || !quickStartDesc || !lastSessionSettings) return;
-    
+
     // Show the Quick Start button
     quickStartBtn.classList.remove('hidden');
     quickStartDesc.classList.remove('hidden');
-    
+
     // Update description with ritual name
     if (lastSessionSettings.ritual && lastSessionSettings.ritual.name) {
         quickStartDesc.textContent = `Start '${lastSessionSettings.ritual.name}' Session`;
@@ -1989,26 +2035,74 @@ function updateQuickStartButton() {
 // Handle Quick Start button click
 function handleQuickStart() {
     console.log('Quick Start button clicked');
-    
+
     if (!lastSessionSettings) {
         console.error('No previous session settings found');
         return;
     }
-    
+
     // Start a new session with the saved settings
     startFocusSessionFromSettings(lastSessionSettings);
 }
 
 // Save session settings when starting a new session
-function saveSessionSettings(settings) {
+async function saveSessionSettings(settings) {
     lastSessionSettings = settings;
-    
-    // Save to chrome.storage.sync for persistence
-    chrome.storage.sync.set({ 'auraflow_last_session': settings });
-    
-    console.log('Session settings saved:', settings);
+
+    // Save to storage for persistence
+    try {
+        await Platform.saveData('auraflow_last_session', settings);
+        console.log('Session settings saved:', settings);
+    } catch (error) {
+        console.error('Error saving session settings:', error);
+    }
 }
 
+// Start a focus session with the given settings or duration
+function startFocusSession(settingsOrDuration, breakDuration, taskGoal) {
+    console.log('Starting focus session with:', settingsOrDuration);
+
+    // Handle different parameter types
+    if (typeof settingsOrDuration === 'number') {
+        // Called with duration only
+        const duration = settingsOrDuration;
+
+        // Store session settings
+        chrome.storage.local.set({
+            sessionDuration: duration,
+            sessionType: 'focus'
+        });
+
+        // Switch to session screen
+        showSessionScreen();
+
+        // Start the timer
+        startTimer(duration);
+
+        announceToScreenReader(`Starting ${duration} minute focus session`);
+    } else {
+        // Called with settings object
+        const settings = settingsOrDuration;
+
+        // Apply settings to the session
+        if (settings.ritual) {
+            // Set timer duration
+            const timerDisplay = document.getElementById('timer-display');
+            if (timerDisplay && settings.ritual.workDuration) {
+                const minutes = settings.ritual.workDuration;
+                timerDisplay.textContent = `${minutes}:00`;
+            }
+
+            // Set soundscape if available
+            const soundscapeSelector = document.getElementById('soundscape-selector');
+            if (soundscapeSelector && settings.soundscape) {
+                soundscapeSelector.value = settings.soundscape;
+            }
+        }
+
+        // Show the session screen
+        showSessionScreen();
+    }
 // Start a focus session with the given settings
 function startFocusSessionFromSettings(settings) {
     console.log('Starting focus session with settings:', settings);
@@ -2027,6 +2121,15 @@ function startFocusSessionFromSettings(settings) {
 // ============================================================================
 
 /**
+ * Handle Quick Focus button click - starts a standard 25-minute focus session
+ */
+function handleQuickFocus() {
+    console.log('Quick Focus button clicked');
+
+    // Start a standard 25-minute focus session
+    startFocusSession(25);
+
+    announceToScreenReader('Starting 25 minute focus session');
  * Starts a focus session with notifications
  * @param {number} workDuration - Work duration in minutes
  * @param {number} breakDuration - Break duration in minutes
@@ -2079,6 +2182,37 @@ async function startFocusSessionWithNotifications(workDuration, breakDuration, t
  * Ends the current focus session early
  */
 async function endFocusSession() {
+    try {
+        // End the session
+        const response = await sendMessageToServiceWorker({
+            action: 'endSession'
+        });
+
+        if (response.success) {
+            console.log('Focus session ended');
+
+            // Disable website blocking
+            try {
+                const blockingResponse = await sendMessageToServiceWorker({
+                    action: 'endFocus'
+                });
+                if (blockingResponse.success) {
+                    console.log('Website blocking disabled');
+                }
+            } catch (blockingError) {
+                console.warn('Failed to disable blocking:', blockingError);
+            }
+
+            // Update UI to show session ended
+            showSessionEndedUI();
+            announceToScreenReader('Focus session ended');
+        } else {
+            throw new Error(response.error || 'Failed to end session');
+        }
+    } catch (error) {
+        console.error('Failed to end focus session:', error);
+        showError('Failed to end focus session. Please try again.');
+    }
   try {
     // End the session
     const response = await sendMessageToServiceWorker({
@@ -2120,16 +2254,16 @@ async function endFocusSession() {
  * @param {string} taskGoal - Task goal
  */
 function showSessionStartedUI(workDuration, breakDuration, taskGoal) {
-  const aiResults = document.getElementById('ai-results');
-  if (!aiResults) return;
-  
-  const endTime = new Date(Date.now() + workDuration * 60 * 1000);
-  const endTimeStr = endTime.toLocaleTimeString('en-US', { 
-    hour: 'numeric', 
-    minute: '2-digit' 
-  });
-  
-  aiResults.innerHTML = `
+    const aiResults = document.getElementById('ai-results');
+    if (!aiResults) return;
+
+    const endTime = new Date(Date.now() + workDuration * 60 * 1000);
+    const endTimeStr = endTime.toLocaleTimeString('en-US', {
+        hour: 'numeric',
+        minute: '2-digit'
+    });
+
+    aiResults.innerHTML = `
     <div class="ai-result-card" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
       <div class="ai-result-title" style="color: white;">🎯 Focus Session Active</div>
       <div class="ai-result-content">
@@ -2160,24 +2294,24 @@ function showSessionStartedUI(workDuration, breakDuration, taskGoal) {
       </div>
     </div>
   `;
-  
-  aiResults.classList.remove('hidden');
-  
-  // Add event listener to end session button
-  const endSessionBtn = document.getElementById('end-session-btn');
-  if (endSessionBtn) {
-    endSessionBtn.addEventListener('click', endFocusSession);
-  }
+
+    aiResults.classList.remove('hidden');
+
+    // Add event listener to end session button
+    const endSessionBtn = document.getElementById('end-session-btn');
+    if (endSessionBtn) {
+        endSessionBtn.addEventListener('click', endFocusSession);
+    }
 }
 
 /**
  * Shows UI for ended session
  */
 function showSessionEndedUI() {
-  const aiResults = document.getElementById('ai-results');
-  if (!aiResults) return;
-  
-  aiResults.innerHTML = `
+    const aiResults = document.getElementById('ai-results');
+    if (!aiResults) return;
+
+    aiResults.innerHTML = `
     <div class="ai-result-card">
       <div class="ai-result-title">✅ Session Ended</div>
       <div class="ai-result-content">
@@ -2185,13 +2319,13 @@ function showSessionEndedUI() {
       </div>
     </div>
   `;
-  
-  aiResults.classList.remove('hidden');
-  
-  // Hide after 3 seconds
-  setTimeout(() => {
-    aiResults.classList.add('hidden');
-  }, 3000);
+
+    aiResults.classList.remove('hidden');
+
+    // Hide after 3 seconds
+    setTimeout(() => {
+        aiResults.classList.add('hidden');
+    }, 3000);
 }
 
 
@@ -2203,65 +2337,47 @@ function showSessionEndedUI() {
  * Loads the blocked sites list from storage and populates the textarea
  */
 async function loadBlockedSites() {
-  try {
-    const result = await chrome.storage.sync.get(['auraFlowBlockedSites']);
-    const blockedSites = result.auraFlowBlockedSites || [];
-    
-    const textarea = document.getElementById('blocked-sites-list');
-    if (textarea && blockedSites.length > 0) {
-      textarea.value = blockedSites.join('\n');
+    try {
+        const blockedSites = await Platform.getData('auraFlowBlockedSites') || [];
+
+        const textarea = document.getElementById('blocked-sites-list');
+        if (textarea && blockedSites.length > 0) {
+            textarea.value = blockedSites.join('\n');
+        }
+    } catch (error) {
+        console.error('Failed to load blocked sites:', error);
     }
-  } catch (error) {
-    console.error('Failed to load blocked sites:', error);
-  }
 }
 
 /**
  * Handles saving the blocked sites list
  */
 async function handleSaveBlockedSites() {
-  try {
-    const textarea = document.getElementById('blocked-sites-list');
-    if (!textarea) return;
-    
-    // Get text content and split by newlines
-    const text = textarea.value;
-    const sites = text
-      .split('\n')
-      .map(site => site.trim())
-      .filter(site => site.length > 0); // Remove empty lines
-    
-    // Save to chrome.storage.sync
-    await chrome.storage.sync.set({ auraFlowBlockedSites: sites });
-    
-    console.log('Blocked sites saved:', sites);
-    
-    // Show success feedback
-    showBlockingSaveSuccess();
-    
-    // Announce to screen reader
-    announceToScreenReader(`Saved ${sites.length} blocked sites`);
-  } catch (error) {
-    console.error('Failed to save blocked sites:', error);
-    showError('Failed to save blocked sites. Please try again.');
-  }
-}
+    try {
+        const textarea = document.getElementById('blocked-sites-list');
+        if (!textarea) return;
 
-/**
- * Shows success feedback when blocked sites are saved
- */
-function showBlockingSaveSuccess() {
-  const button = document.getElementById('save-blocked-sites-button');
-  if (!button) return;
-  
-  const originalText = button.innerHTML;
-  button.innerHTML = '<span class="btn-icon">✅</span> Saved!';
-  button.disabled = true;
-  
-  setTimeout(() => {
-    button.innerHTML = originalText;
-    button.disabled = false;
-  }, 2000);
+        // Get text content and split by newlines
+        const text = textarea.value;
+        const sites = text
+            .split('\n')
+            .map(site => site.trim())
+            .filter(site => site.length > 0); // Remove empty lines
+
+        // Save to storage
+        await Platform.saveData('auraFlowBlockedSites', sites);
+
+        console.log('Blocked sites saved:', sites);
+
+        // Show success feedback
+        showBlockingSaveSuccess();
+
+        // Announce to screen reader
+        announceToScreenReader(`Saved ${sites.length} blocked sites`);
+    } catch (error) {
+        console.error('Failed to save blocked sites:', error);
+        showError('Failed to save blocked sites. Please try again.');
+    }
 }
 
 /**
@@ -2303,6 +2419,43 @@ function startFocusSession(duration) {
  * @param {number} breakDuration - Break duration in minutes
  * @param {string} soundscape - Recommended soundscape
  */
+async function useRitual(name, workDuration, breakDuration, soundscape) {
+    console.log(`Using ritual: ${name}, Work: ${workDuration}, Break: ${breakDuration}, Soundscape: ${soundscape}`);
+
+    try {
+        // Store ritual settings using Chrome storage
+        chrome.storage.local.set({
+            ritualName: name,
+            sessionDuration: workDuration,
+            breakDuration: breakDuration,
+            recommendedSoundscape: soundscape,
+            sessionType: 'ritual'
+        });
+
+        // Set the soundscape selector if available
+        const soundscapeSelector = document.getElementById('soundscape-selector');
+        if (soundscapeSelector) {
+            soundscapeSelector.value = soundscape;
+        }
+
+        // Switch to session screen
+        showSessionScreen();
+
+        // Start the timer (simplified for now)
+        const timerDisplay = document.getElementById('timer-display');
+        if (timerDisplay) {
+            timerDisplay.textContent = `${workDuration}:00`;
+        }
+
+        // Hide AI results
+        hideAIResults();
+
+        announceToScreenReader(`Starting ${name} ritual with ${workDuration} minute work session`);
+
+    } catch (error) {
+        console.error('Error using ritual:', error);
+        showAIError('Failed to start ritual. Please try again.');
+    }
 function useRitual(name, workDuration, breakDuration, soundscape) {
     console.log(`Using ritual: ${name}`);
 
@@ -2338,6 +2491,386 @@ function retryLastAIAction() {
 }
 
 /**
+ * Add event listeners for dynamically created AI result buttons
+ */
+function addAIResultsEventListeners() {
+    const aiResults = document.getElementById('ai-results');
+    if (!aiResults) return;
+
+    // Use event delegation
+    aiResults.addEventListener('click', (e) => {
+        const action = e.target.dataset.action;
+
+        if (action === 'close-results') {
+            hideAIResults();
+        } else if (action === 'start-session') {
+            const duration = parseInt(e.target.dataset.duration);
+            startFocusSession(duration);
+        } else if (action === 'use-ritual') {
+            const name = e.target.dataset.name;
+            const work = parseInt(e.target.dataset.work);
+            const breakTime = parseInt(e.target.dataset.break);
+            const soundscape = e.target.dataset.soundscape;
+            useRitual(name, work, breakTime, soundscape);
+        } else if (action === 'retry-ai') {
+            retryLastAIAction();
+        }
+    });
+}
+
+// ============================================================================
+// SLACK STATUS CONTROL
+// ============================================================================
+
+/**
+ * Handle Connect Slack button click
+ * Initiates OAuth flow to authenticate with Slack
+ */
+async function handleConnectSlack() {
+    console.log('Connect Slack button clicked');
+
+    const connectBtn = document.getElementById('connect-slack-btn');
+    if (!connectBtn) return;
+
+    try {
+        // Show loading state
+        connectBtn.disabled = true;
+        connectBtn.innerHTML = '<span class="btn-icon">⏳</span> Connecting...';
+
+        // Send authentication request to service worker
+        const response = await sendMessageToServiceWorker({ action: 'authenticateSlack' });
+
+        if (response && response.success) {
+            console.log('Slack authentication successful');
+
+            // Show connected state
+            const workspaceName = response.data?.workspaceName || 'Slack Workspace';
+            showSlackConnectedState(workspaceName);
+
+            // Load current status
+            await loadCurrentSlackStatus();
+
+            announceToScreenReader('Successfully connected to Slack');
+        } else {
+            throw new Error(response?.error || 'Failed to connect to Slack');
+        }
+    } catch (error) {
+        console.error('Slack authentication error:', error);
+        displaySlackError(error.message || 'Failed to connect to Slack. Please try again.');
+
+        // Reset button state
+        connectBtn.disabled = false;
+        connectBtn.innerHTML = '<span class="btn-icon">🔗</span> Connect Slack';
+    }
+}
+
+/**
+ * Handle Disconnect Slack button click
+ * Clears tokens and updates UI to disconnected state
+ */
+async function handleDisconnectSlack() {
+    console.log('Disconnect Slack button clicked');
+
+    try {
+        // Send disconnect request to service worker
+        const response = await sendMessageToServiceWorker({ action: 'disconnectSlack' });
+
+        if (response && response.success) {
+            console.log('Slack disconnected successfully');
+            showSlackDisconnectedState();
+            announceToScreenReader('Disconnected from Slack');
+        } else {
+            throw new Error(response?.error || 'Failed to disconnect from Slack');
+        }
+    } catch (error) {
+        console.error('Slack disconnect error:', error);
+        displaySlackError(error.message || 'Failed to disconnect. Please try again.');
+    }
+}
+
+/**
+ * Handle Slack status change button click
+ * Sends status update request to service worker
+ * Status is automatically stored in chrome.storage.local by the service worker
+ * @param {string} status - The status to set ('available', 'focused', 'dnd')
+ */
+async function handleSlackStatusChange(status) {
+    console.log('Slack status change requested:', status);
+
+    // Don't update if clicking the currently active status
+    const button = document.querySelector(`.slack-status-btn[data-status="${status}"]`);
+    if (!button) return;
+
+    if (button.classList.contains('active')) {
+        console.log('Status already active, no action needed');
+        return;
+    }
+
+    try {
+        // Show loading state on the clicked button
+        const spinner = button.querySelector('.loading-spinner');
+        if (spinner) {
+            spinner.classList.remove('hidden');
+        }
+        button.disabled = true;
+
+        // Send status update request to service worker
+        // The service worker will update Slack and store the status in chrome.storage.local
+        const response = await sendMessageToServiceWorker({
+            action: 'updateSlackStatus',
+            status: status
+        });
+
+        if (response && response.success) {
+            console.log('Slack status updated and stored successfully:', status);
+
+            // Update UI to reflect new active status
+            updateSlackStatusUI(status);
+
+            announceToScreenReader(`Slack status set to ${status}`);
+        } else {
+            throw new Error(response?.error || 'Failed to update Slack status');
+        }
+    } catch (error) {
+        console.error('Slack status update error:', error);
+        displaySlackError(error.message || 'Failed to update status. Please try again.');
+    } finally {
+        // Hide loading state
+        const spinner = button.querySelector('.loading-spinner');
+        if (spinner) {
+            spinner.classList.add('hidden');
+        }
+        button.disabled = false;
+    }
+}
+
+/**
+ * Load current Slack status from service worker
+ * Fetches and displays the current status to sync with actual Slack state
+ * Handles cases where status was changed outside the extension
+ */
+async function loadCurrentSlackStatus() {
+    console.log('Loading current Slack status from Slack API');
+
+    try {
+        // Fetch current status from Slack API
+        const response = await sendMessageToServiceWorker({ action: 'getCurrentSlackStatus' });
+
+        if (response && response.success && response.data) {
+            const currentStatus = response.data.status;
+            const currentEmoji = response.data.emoji;
+            const currentText = response.data.text;
+            const fromCache = response.data.fromCache;
+
+            console.log('Current Slack status:', {
+                status: currentStatus,
+                emoji: currentEmoji,
+                text: currentText,
+                fromCache: fromCache
+            });
+
+            // Get last known status from storage to compare
+            const lastStatusResponse = await sendMessageToServiceWorker({ action: 'getLastSlackStatus' });
+            const lastStatus = lastStatusResponse?.data?.status;
+
+            // Update UI with current status
+            if (currentStatus) {
+                updateSlackStatusUI(currentStatus);
+
+                // If status differs from last known, log it
+                if (lastStatus && lastStatus !== currentStatus) {
+                    console.log(`Status changed outside extension: ${lastStatus} -> ${currentStatus}`);
+                    announceToScreenReader(`Slack status synced to ${currentStatus}`);
+                }
+            } else if (lastStatus) {
+                // If we couldn't determine current status from Slack, use last known
+                console.log('Could not determine current status, using last known:', lastStatus);
+                updateSlackStatusUI(lastStatus);
+            }
+
+            // Show warning if displaying cached status
+            if (fromCache) {
+                console.warn('Displaying cached status - could not fetch from Slack');
+            }
+        } else {
+            // If fetching failed, try to show last known status
+            const lastStatusResponse = await sendMessageToServiceWorker({ action: 'getLastSlackStatus' });
+            if (lastStatusResponse && lastStatusResponse.success && lastStatusResponse.data) {
+                const lastStatus = lastStatusResponse.data.status;
+                if (lastStatus) {
+                    console.log('Using last known status from storage:', lastStatus);
+                    updateSlackStatusUI(lastStatus);
+                }
+            }
+        }
+    } catch (error) {
+        console.error('Error loading Slack status:', error);
+
+        // Try to fall back to last known status from storage
+        try {
+            const lastStatusResponse = await sendMessageToServiceWorker({ action: 'getLastSlackStatus' });
+            if (lastStatusResponse && lastStatusResponse.success && lastStatusResponse.data) {
+                const lastStatus = lastStatusResponse.data.status;
+                if (lastStatus) {
+                    console.log('Error occurred, falling back to last known status:', lastStatus);
+                    updateSlackStatusUI(lastStatus);
+                }
+            }
+        } catch (fallbackError) {
+            console.error('Failed to load fallback status:', fallbackError);
+        }
+
+        // Don't show error to user for status loading failures
+        // Just log it and continue with default state
+    }
+}
+
+/**
+ * Update Slack status UI to reflect active status
+ * Removes active class from all buttons and adds it to the current status
+ * @param {string} status - The active status ('available', 'focused', 'dnd')
+ */
+function updateSlackStatusUI(status) {
+    console.log('Updating Slack status UI:', status);
+
+    // Remove active class from all status buttons
+    const allButtons = document.querySelectorAll('.slack-status-btn');
+    allButtons.forEach(btn => {
+        btn.classList.remove('active');
+        btn.setAttribute('aria-pressed', 'false');
+    });
+
+    // Add active class to the current status button
+    const activeButton = document.querySelector(`.slack-status-btn[data-status="${status}"]`);
+    if (activeButton) {
+        activeButton.classList.add('active');
+        activeButton.setAttribute('aria-pressed', 'true');
+    }
+}
+
+/**
+ * Display error message in Slack status section
+ * Shows error message and auto-hides after 5 seconds
+ * @param {string} message - The error message to display
+ */
+function displaySlackError(message) {
+    console.log('Displaying Slack error:', message);
+
+    const errorDiv = document.getElementById('slack-status-error');
+    if (!errorDiv) return;
+
+    errorDiv.textContent = message;
+    errorDiv.classList.remove('hidden');
+
+    // Auto-hide error after 5 seconds
+    setTimeout(() => {
+        errorDiv.classList.add('hidden');
+    }, 5000);
+
+    announceToScreenReader(`Error: ${message}`);
+}
+
+/**
+ * Show Slack connected state in UI
+ * Displays workspace name and status buttons
+ * @param {string} workspaceName - The name of the connected Slack workspace
+ */
+function showSlackConnectedState(workspaceName) {
+    const notConnectedDiv = document.getElementById('slack-not-connected');
+    const connectedDiv = document.getElementById('slack-connected');
+    const workspaceNameSpan = document.getElementById('slack-workspace-name');
+
+    if (notConnectedDiv) {
+        notConnectedDiv.classList.add('hidden');
+    }
+
+    if (connectedDiv) {
+        connectedDiv.classList.remove('hidden');
+    }
+
+    if (workspaceNameSpan && workspaceName) {
+        workspaceNameSpan.textContent = workspaceName;
+    }
+}
+
+/**
+ * Show Slack disconnected state in UI
+ * Displays connect button and hides status controls
+ */
+function showSlackDisconnectedState() {
+    const notConnectedDiv = document.getElementById('slack-not-connected');
+    const connectedDiv = document.getElementById('slack-connected');
+
+    if (notConnectedDiv) {
+        notConnectedDiv.classList.remove('hidden');
+    }
+
+    if (connectedDiv) {
+        connectedDiv.classList.add('hidden');
+    }
+
+    // Clear any active status
+    const allButtons = document.querySelectorAll('.slack-status-btn');
+    allButtons.forEach(btn => {
+        btn.classList.remove('active');
+        btn.setAttribute('aria-pressed', 'false');
+    });
+}
+
+/**
+ * Initialize Slack status control on popup load
+ * Checks connection status and loads current status if connected
+ */
+async function initializeSlackStatus() {
+    console.log('Initializing Slack status control');
+
+    try {
+        // Check if Slack is connected
+        const authResponse = await sendMessageToServiceWorker({ action: 'checkSlackAuthStatus' });
+
+        if (authResponse && authResponse.success && authResponse.data) {
+            const authData = authResponse.data;
+
+            if (authData.isAuthenticated) {
+                console.log('Slack is connected, loading status');
+
+                // Show connected state with workspace name
+                const workspaceName = authData.team?.name || 'Slack Workspace';
+                showSlackConnectedState(workspaceName);
+
+                // Load and display last known status immediately (from storage)
+                const lastStatusResponse = await sendMessageToServiceWorker({ action: 'getLastSlackStatus' });
+                console.log('Last status response:', lastStatusResponse);
+                if (lastStatusResponse && lastStatusResponse.success && lastStatusResponse.data) {
+                    const lastStatus = lastStatusResponse.data.status;
+                    console.log('Last status from storage:', lastStatus);
+                    if (lastStatus) {
+                        console.log('Displaying last known status:', lastStatus);
+                        updateSlackStatusUI(lastStatus);
+                    } else {
+                        console.log('No last status found in response data');
+                    }
+                } else {
+                    console.log('Failed to get last status or no data:', lastStatusResponse);
+                }
+
+                // Note: We're NOT fetching current status from Slack API here
+                // because the emoji matching is unreliable (Slack uses :emoji: format)
+                // We rely on the last stored status which is updated when user changes it
+                // If needed, we can add a manual "Sync" button later
+            } else {
+                console.log('Slack is not connected');
+                showSlackDisconnectedState();
+            }
+        } else {
+            console.log('Could not check Slack auth status');
+            showSlackDisconnectedState();
+        }
+    } catch (error) {
+        console.error('Error initializing Slack status:', error);
+        // Show disconnected state on error
+        showSlackDisconnectedState();
+    }
  * Handle Quick Focus button click - starts a standard 25-minute focus session
  */
 function handleQuickFocus() {

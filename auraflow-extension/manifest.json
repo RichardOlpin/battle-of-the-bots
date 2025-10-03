@@ -18,6 +18,8 @@
     ],
     "host_permissions": [
         "https://www.googleapis.com/*",
+        "https://slack.com/*",
+        "https://slack.com/api/*",
         "*://*/*"
     ],
     "background": {
@@ -37,5 +39,8 @@
         "scopes": [
             "https://www.googleapis.com/auth/calendar.readonly"
         ]
+    },
+    "content_security_policy": {
+        "extension_pages": "script-src 'self'; object-src 'self'"
     }
 }

@@ -1,0 +1,347 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AuraFlow Offline Test</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .test-section {
+            background: white;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .test-section h2 {
+            margin-top: 0;
+            color: #6366f1;
+        }
+        .status {
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+            font-weight: 500;
+        }
+        .status.pass {
+            background: #d1fae5;
+            color: #065f46;
+        }
+        .status.fail {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+        .status.pending {
+            background: #fef3c7;
+            color: #92400e;
+        }
+        button {
+            background: #6366f1;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            margin: 5px;
+        }
+        button:hover {
+            background: #4f46e5;
+        }
+        .info {
+            background: #e0e7ff;
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+            font-size: 14px;
+        }
+        pre {
+            background: #1e293b;
+            color: #e2e8f0;
+            padding: 15px;
+            border-radius: 4px;
+            overflow-x: auto;
+            font-size: 12px;
+        }
+    </style>
+</head>
+<body>
+    <h1>🧪 AuraFlow Offline Functionality Test</h1>
+    
+    <div class="test-section">
+        <h2>1. Network Status Detection</h2>
+        <div id="network-status" class="status pending">Checking...</div>
+        <button onclick="testNetworkStatus()">Refresh Status</button>
+        <button onclick="simulateOffline()">Simulate Offline</button>
+        <button onclick="simulateOnline()">Simulate Online</button>
+    </div>
+
+    <div class="test-section">
+        <h2>2. Service Worker Registration</h2>
+        <div id="sw-status" class="status pending">Checking...</div>
+        <button onclick="testServiceWorker()">Check Service Worker</button>
+        <button onclick="unregisterSW()">Unregister SW</button>
+    </div>
+
+    <div class="test-section">
+        <h2>3. Cache Storage</h2>
+        <div id="cache-status" class="status pending">Checking...</div>
+        <button onclick="testCache()">Check Cache</button>
+        <button onclick="clearCache()">Clear Cache</button>
+        <pre id="cache-contents"></pre>
+    </div>
+
+    <div class="test-section">
+        <h2>4. LocalStorage (Offline Queue)</h2>
+        <div id="storage-status" class="status pending">Checking...</div>
+        <button onclick="testLocalStorage()">Check Storage</button>
+        <button onclick="addTestQueue()">Add Test Queue Item</button>
+        <button onclick="clearQueue()">Clear Queue</button>
+        <pre id="storage-contents"></pre>
+    </div>
+
+    <div class="test-section">
+        <h2>5. Core Timer Logic (Offline Test)</h2>
+        <div id="timer-status" class="status pending">Not tested</div>
+        <button onclick="testTimer()">Test Timer (5 seconds)</button>
+        <div id="timer-display" style="font-size: 24px; margin: 10px 0;">--:--</div>
+    </div>
+
+    <div class="test-section">
+        <h2>6. Instructions</h2>
+        <div class="info">
+            <strong>To test offline functionality:</strong>
+            <ol>
+                <li>Run all tests above while online</li>
+                <li>Open DevTools (F12) → Network tab</li>
+                <li>Check "Offline" checkbox</li>
+                <li>Refresh this page</li>
+                <li>Verify page loads from cache</li>
+                <li>Run tests again to verify offline behavior</li>
+            </ol>
+        </div>
+    </div>
+
+    <script type="module">
+        import * as CoreLogic from './core-logic.js';
+        window.CoreLogic = CoreLogic;
+
+        // Test 1: Network Status
+        window.testNetworkStatus = function() {
+            const status = document.getElementById('network-status');
+            const isOnline = navigator.onLine;
+            
+            if (isOnline) {
+                status.className = 'status pass';
+                status.textContent = '✓ Online - Network connection available';
+            } else {
+                status.className = 'status fail';
+                status.textContent = '✗ Offline - No network connection';
+            }
+        };
+
+        window.simulateOffline = function() {
+            window.dispatchEvent(new Event('offline'));
+            testNetworkStatus();
+        };
+
+        window.simulateOnline = function() {
+            window.dispatchEvent(new Event('online'));
+            testNetworkStatus();
+        };
+
+        // Test 2: Service Worker
+        window.testServiceWorker = async function() {
+            const status = document.getElementById('sw-status');
+            
+            if (!('serviceWorker' in navigator)) {
+                status.className = 'status fail';
+                status.textContent = '✗ Service Workers not supported in this browser';
+                return;
+            }
+
+            try {
+                const registration = await navigator.serviceWorker.getRegistration();
+                
+                if (registration) {
+                    const sw = registration.active || registration.installing || registration.waiting;
+                    status.className = 'status pass';
+                    status.textContent = `✓ Service Worker registered: ${sw ? sw.state : 'unknown state'}`;
+                } else {
+                    status.className = 'status fail';
+                    status.textContent = '✗ No Service Worker registered';
+                }
+            } catch (error) {
+                status.className = 'status fail';
+                status.textContent = `✗ Error: ${error.message}`;
+            }
+        };
+
+        window.unregisterSW = async function() {
+            const registration = await navigator.serviceWorker.getRegistration();
+            if (registration) {
+                await registration.unregister();
+                alert('Service Worker unregistered. Refresh to re-register.');
+            }
+        };
+
+        // Test 3: Cache
+        window.testCache = async function() {
+            const status = document.getElementById('cache-status');
+            const contents = document.getElementById('cache-contents');
+            
+            if (!('caches' in window)) {
+                status.className = 'status fail';
+                status.textContent = '✗ Cache API not supported';
+                return;
+            }
+
+            try {
+                const cacheNames = await caches.keys();
+                
+                if (cacheNames.length === 0) {
+                    status.className = 'status fail';
+                    status.textContent = '✗ No caches found';
+                    contents.textContent = 'No caches available';
+                    return;
+                }
+
+                status.className = 'status pass';
+                status.textContent = `✓ Found ${cacheNames.length} cache(s)`;
+
+                let output = `Cache Names:\n${cacheNames.join('\n')}\n\n`;
+
+                for (const cacheName of cacheNames) {
+                    const cache = await caches.open(cacheName);
+                    const keys = await cache.keys();
+                    output += `\n${cacheName} (${keys.length} items):\n`;
+                    keys.forEach(request => {
+                        output += `  - ${request.url}\n`;
+                    });
+                }
+
+                contents.textContent = output;
+            } catch (error) {
+                status.className = 'status fail';
+                status.textContent = `✗ Error: ${error.message}`;
+            }
+        };
+
+        window.clearCache = async function() {
+            const cacheNames = await caches.keys();
+            for (const cacheName of cacheNames) {
+                await caches.delete(cacheName);
+            }
+            alert('All caches cleared. Refresh to rebuild cache.');
+        };
+
+        // Test 4: LocalStorage
+        window.testLocalStorage = function() {
+            const status = document.getElementById('storage-status');
+            const contents = document.getElementById('storage-contents');
+            
+            try {
+                const queue = localStorage.getItem('offlineQueue');
+                const cachedEvents = localStorage.getItem('cachedEvents');
+                const theme = localStorage.getItem('theme');
+                
+                let output = 'LocalStorage Contents:\n\n';
+                
+                if (queue) {
+                    const parsed = JSON.parse(queue);
+                    output += `offlineQueue: ${Array.isArray(parsed) ? parsed.length : 0} items\n`;
+                    output += JSON.stringify(parsed, null, 2) + '\n\n';
+                } else {
+                    output += 'offlineQueue: empty\n\n';
+                }
+                
+                if (cachedEvents) {
+                    const parsed = JSON.parse(cachedEvents);
+                    output += `cachedEvents: ${Array.isArray(parsed) ? parsed.length : 0} events\n\n`;
+                }
+                
+                if (theme) {
+                    output += `theme: ${JSON.parse(theme)}\n`;
+                }
+                
+                contents.textContent = output;
+                status.className = 'status pass';
+                status.textContent = '✓ LocalStorage accessible';
+            } catch (error) {
+                status.className = 'status fail';
+                status.textContent = `✗ Error: ${error.message}`;
+            }
+        };
+
+        window.addTestQueue = function() {
+            const queue = JSON.parse(localStorage.getItem('offlineQueue') || '[]');
+            queue.push({
+                id: `test_${Date.now()}`,
+                endpoint: '/test/endpoint',
+                timestamp: Date.now()
+            });
+            localStorage.setItem('offlineQueue', JSON.stringify(queue));
+            testLocalStorage();
+        };
+
+        window.clearQueue = function() {
+            localStorage.removeItem('offlineQueue');
+            testLocalStorage();
+        };
+
+        // Test 5: Timer
+        window.testTimer = function() {
+            const status = document.getElementById('timer-status');
+            const display = document.getElementById('timer-display');
+            
+            status.className = 'status pending';
+            status.textContent = 'Testing timer for 5 seconds...';
+            
+            let ticks = 0;
+            
+            CoreLogic.startTimer(
+                5,
+                (remaining) => {
+                    ticks++;
+                    display.textContent = CoreLogic.formatTime(remaining);
+                },
+                () => {
+                    if (ticks >= 4) {
+                        status.className = 'status pass';
+                        status.textContent = `✓ Timer completed successfully (${ticks} ticks)`;
+                    } else {
+                        status.className = 'status fail';
+                        status.textContent = `✗ Timer completed but only ${ticks} ticks (expected 5)`;
+                    }
+                    display.textContent = '00:00';
+                }
+            );
+        };
+
+        // Run initial tests
+        window.addEventListener('load', () => {
+            testNetworkStatus();
+            testServiceWorker();
+            testCache();
+            testLocalStorage();
+        });
+
+        // Listen for network changes
+        window.addEventListener('online', () => {
+            console.log('Network: Online');
+            testNetworkStatus();
+        });
+
+        window.addEventListener('offline', () => {
+            console.log('Network: Offline');
+            testNetworkStatus();
+        });
+    </script>
+</body>
+</html>

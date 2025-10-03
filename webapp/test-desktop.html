@@ -1,0 +1,555 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AuraFlow Desktop Test Suite</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 20px;
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 12px;
+            padding: 30px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+        }
+
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+        }
+
+        .subtitle {
+            color: #666;
+            margin-bottom: 30px;
+        }
+
+        .test-section {
+            margin-bottom: 30px;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            border-left: 4px solid #667eea;
+        }
+
+        .test-section h2 {
+            color: #333;
+            margin-bottom: 15px;
+            font-size: 1.3em;
+        }
+
+        .test-case {
+            background: white;
+            padding: 15px;
+            margin-bottom: 10px;
+            border-radius: 6px;
+            border: 1px solid #e0e0e0;
+        }
+
+        .test-case h3 {
+            color: #555;
+            font-size: 1em;
+            margin-bottom: 10px;
+        }
+
+        .test-result {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-top: 10px;
+        }
+
+        .status {
+            padding: 4px 12px;
+            border-radius: 4px;
+            font-weight: 600;
+            font-size: 0.9em;
+        }
+
+        .status.pass {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .status.fail {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        .status.pending {
+            background: #fff3cd;
+            color: #856404;
+        }
+
+        .test-details {
+            margin-top: 10px;
+            padding: 10px;
+            background: #f8f9fa;
+            border-radius: 4px;
+            font-size: 0.9em;
+            color: #666;
+            font-family: 'Courier New', monospace;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 30px;
+        }
+
+        button {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 6px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .primary-btn {
+            background: #667eea;
+            color: white;
+        }
+
+        .primary-btn:hover {
+            background: #5568d3;
+        }
+
+        .secondary-btn {
+            background: #e0e0e0;
+            color: #333;
+        }
+
+        .secondary-btn:hover {
+            background: #d0d0d0;
+        }
+
+        .summary {
+            background: #667eea;
+            color: white;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 30px;
+        }
+
+        .summary h2 {
+            margin-bottom: 15px;
+        }
+
+        .summary-stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+        }
+
+        .stat {
+            background: rgba(255, 255, 255, 0.2);
+            padding: 15px;
+            border-radius: 6px;
+        }
+
+        .stat-value {
+            font-size: 2em;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+
+        .stat-label {
+            font-size: 0.9em;
+            opacity: 0.9;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 8px;
+            background: #e0e0e0;
+            border-radius: 4px;
+            overflow: hidden;
+            margin-top: 10px;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: #667eea;
+            transition: width 0.3s;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🧪 AuraFlow Desktop Test Suite</h1>
+        <p class="subtitle">Automated testing for web application functionality</p>
+
+        <div class="button-group">
+            <button class="primary-btn" onclick="runAllTests()">Run All Tests</button>
+            <button class="secondary-btn" onclick="clearResults()">Clear Results</button>
+            <button class="secondary-btn" onclick="exportResults()">Export Results</button>
+        </div>
+
+        <div id="summary" class="summary" style="display: none;">
+            <h2>Test Summary</h2>
+            <div class="summary-stats">
+                <div class="stat">
+                    <div class="stat-value" id="total-tests">0</div>
+                    <div class="stat-label">Total Tests</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-value" id="passed-tests">0</div>
+                    <div class="stat-label">Passed</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-value" id="failed-tests">0</div>
+                    <div class="stat-label">Failed</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-value" id="success-rate">0%</div>
+                    <div class="stat-label">Success Rate</div>
+                </div>
+            </div>
+            <div class="progress-bar">
+                <div class="progress-fill" id="progress-fill" style="width: 0%"></div>
+            </div>
+        </div>
+
+        <div id="test-results"></div>
+    </div>
+
+    <script type="module">
+        import * as CoreLogic from './core-logic.js';
+        import * as Platform from './web-platform-services.js';
+
+        window.CoreLogic = CoreLogic;
+        window.Platform = Platform;
+
+        const tests = {
+            'Core Logic Tests': [
+                {
+                    name: 'Timer starts correctly',
+                    test: async () => {
+                        let tickCount = 0;
+                        const started = CoreLogic.startTimer(5, () => tickCount++, () => {});
+                        await new Promise(resolve => setTimeout(resolve, 2100));
+                        CoreLogic.stopTimer();
+                        return started && tickCount >= 2;
+                    }
+                },
+                {
+                    name: 'Timer pause and resume',
+                    test: async () => {
+                        CoreLogic.startTimer(10, () => {}, () => {});
+                        await new Promise(resolve => setTimeout(resolve, 1000));
+                        const paused = CoreLogic.pauseTimer();
+                        const state1 = CoreLogic.getTimerState();
+                        await new Promise(resolve => setTimeout(resolve, 1000));
+                        const state2 = CoreLogic.getTimerState();
+                        const resumed = CoreLogic.resumeTimer();
+                        CoreLogic.stopTimer();
+                        return paused && resumed && state1.elapsed === state2.elapsed;
+                    }
+                },
+                {
+                    name: 'Timer stops correctly',
+                    test: async () => {
+                        CoreLogic.startTimer(10, () => {}, () => {});
+                        const stopped = CoreLogic.stopTimer();
+                        const state = CoreLogic.getTimerState();
+                        return stopped && !state.isRunning;
+                    }
+                },
+                {
+                    name: 'Session initialization',
+                    test: async () => {
+                        const config = {
+                            mode: 'work',
+                            workDuration: 1500,
+                            breakDuration: 300,
+                            soundscape: 'rain',
+                            volume: 50
+                        };
+                        const session = CoreLogic.initializeSession(config);
+                        return session && session.mode === 'work' && session.sessionId;
+                    }
+                },
+                {
+                    name: 'Session state management',
+                    test: async () => {
+                        const config = { mode: 'work', workDuration: 1500 };
+                        CoreLogic.initializeSession(config);
+                        const updated = CoreLogic.updateSessionState({ interruptions: 2 });
+                        const state = CoreLogic.getSessionState();
+                        return updated && state.interruptions === 2;
+                    }
+                },
+                {
+                    name: 'Time formatting',
+                    test: async () => {
+                        const formatted1 = CoreLogic.formatTime(125);
+                        const formatted2 = CoreLogic.formatTime(3661);
+                        return formatted1 === '02:05' && formatted2 === '61:01';
+                    }
+                },
+                {
+                    name: 'Progress calculation',
+                    test: async () => {
+                        const progress = CoreLogic.calculateProgress(750, 1500);
+                        return progress === 50;
+                    }
+                },
+                {
+                    name: 'Session data preparation',
+                    test: async () => {
+                        const session = CoreLogic.initializeSession({ mode: 'work', workDuration: 1500 });
+                        const data = CoreLogic.prepareSessionData({ sessionState: session, timerState: {} });
+                        return data && data.sessionId && data.mode === 'work';
+                    }
+                }
+            ],
+            'Platform Services Tests': [
+                {
+                    name: 'LocalStorage save and retrieve',
+                    test: async () => {
+                        await Platform.saveData('test-key', { value: 'test-data' });
+                        const data = await Platform.getData('test-key');
+                        await Platform.removeData('test-key');
+                        return data && data.value === 'test-data';
+                    }
+                },
+                {
+                    name: 'LocalStorage remove',
+                    test: async () => {
+                        await Platform.saveData('test-remove', 'data');
+                        await Platform.removeData('test-remove');
+                        const data = await Platform.getData('test-remove');
+                        return data === null;
+                    }
+                },
+                {
+                    name: 'Notification permission check',
+                    test: async () => {
+                        const permission = await Platform.getNotificationPermission();
+                        return ['granted', 'denied', 'default', 'unsupported'].includes(permission);
+                    }
+                },
+                {
+                    name: 'Notification creation (no error)',
+                    test: async () => {
+                        try {
+                            await Platform.createNotification({
+                                title: 'Test',
+                                message: 'Test message',
+                                iconUrl: '/icons/icon-192.png'
+                            });
+                            return true;
+                        } catch (error) {
+                            return false;
+                        }
+                    }
+                }
+            ],
+            'Browser Compatibility Tests': [
+                {
+                    name: 'Service Worker support',
+                    test: async () => {
+                        return 'serviceWorker' in navigator;
+                    }
+                },
+                {
+                    name: 'LocalStorage support',
+                    test: async () => {
+                        return typeof Storage !== 'undefined';
+                    }
+                },
+                {
+                    name: 'Notification API support',
+                    test: async () => {
+                        return 'Notification' in window;
+                    }
+                },
+                {
+                    name: 'Fetch API support',
+                    test: async () => {
+                        return typeof fetch === 'function';
+                    }
+                },
+                {
+                    name: 'ES6 Modules support',
+                    test: async () => {
+                        return typeof CoreLogic === 'object' && typeof Platform === 'object';
+                    }
+                },
+                {
+                    name: 'Audio API support',
+                    test: async () => {
+                        return typeof Audio === 'function';
+                    }
+                }
+            ],
+            'UI Integration Tests': [
+                {
+                    name: 'App container exists',
+                    test: async () => {
+                        const response = await fetch('/index.html');
+                        const html = await response.text();
+                        return html.includes('id="app"');
+                    }
+                },
+                {
+                    name: 'All screens present',
+                    test: async () => {
+                        const response = await fetch('/index.html');
+                        const html = await response.text();
+                        return html.includes('auth-screen') && 
+                               html.includes('events-screen') && 
+                               html.includes('session-screen');
+                    }
+                },
+                {
+                    name: 'Theme buttons present',
+                    test: async () => {
+                        const response = await fetch('/index.html');
+                        const html = await response.text();
+                        return html.includes('theme-light-button') && 
+                               html.includes('theme-dark-button');
+                    }
+                },
+                {
+                    name: 'Timer display present',
+                    test: async () => {
+                        const response = await fetch('/index.html');
+                        const html = await response.text();
+                        return html.includes('timer-display');
+                    }
+                },
+                {
+                    name: 'CSS file loads',
+                    test: async () => {
+                        const response = await fetch('/style.css');
+                        return response.ok;
+                    }
+                },
+                {
+                    name: 'Manifest file exists',
+                    test: async () => {
+                        const response = await fetch('/manifest.json');
+                        return response.ok;
+                    }
+                },
+                {
+                    name: 'Service worker file exists',
+                    test: async () => {
+                        const response = await fetch('/service-worker.js');
+                        return response.ok;
+                    }
+                }
+            ]
+        };
+
+        window.runAllTests = async function() {
+            const resultsContainer = document.getElementById('test-results');
+            const summaryDiv = document.getElementById('summary');
+            resultsContainer.innerHTML = '';
+            summaryDiv.style.display = 'block';
+
+            let totalTests = 0;
+            let passedTests = 0;
+            let failedTests = 0;
+
+            for (const [sectionName, sectionTests] of Object.entries(tests)) {
+                const section = document.createElement('div');
+                section.className = 'test-section';
+                section.innerHTML = `<h2>${sectionName}</h2>`;
+
+                for (const testCase of sectionTests) {
+                    totalTests++;
+                    const testDiv = document.createElement('div');
+                    testDiv.className = 'test-case';
+                    testDiv.innerHTML = `
+                        <h3>${testCase.name}</h3>
+                        <div class="test-result">
+                            <span class="status pending">Running...</span>
+                        </div>
+                    `;
+                    section.appendChild(testDiv);
+                    resultsContainer.appendChild(section);
+
+                    try {
+                        const result = await testCase.test();
+                        const statusEl = testDiv.querySelector('.status');
+                        
+                        if (result) {
+                            statusEl.className = 'status pass';
+                            statusEl.textContent = '✓ PASS';
+                            passedTests++;
+                        } else {
+                            statusEl.className = 'status fail';
+                            statusEl.textContent = '✗ FAIL';
+                            failedTests++;
+                            testDiv.innerHTML += `<div class="test-details">Test returned false</div>`;
+                        }
+                    } catch (error) {
+                        const statusEl = testDiv.querySelector('.status');
+                        statusEl.className = 'status fail';
+                        statusEl.textContent = '✗ FAIL';
+                        failedTests++;
+                        testDiv.innerHTML += `<div class="test-details">Error: ${error.message}</div>`;
+                    }
+
+                    // Update summary
+                    updateSummary(totalTests, passedTests, failedTests);
+                }
+            }
+        };
+
+        function updateSummary(total, passed, failed) {
+            document.getElementById('total-tests').textContent = total;
+            document.getElementById('passed-tests').textContent = passed;
+            document.getElementById('failed-tests').textContent = failed;
+            
+            const successRate = total > 0 ? Math.round((passed / total) * 100) : 0;
+            document.getElementById('success-rate').textContent = successRate + '%';
+            document.getElementById('progress-fill').style.width = successRate + '%';
+        }
+
+        window.clearResults = function() {
+            document.getElementById('test-results').innerHTML = '';
+            document.getElementById('summary').style.display = 'none';
+        };
+
+        window.exportResults = function() {
+            const results = {
+                timestamp: new Date().toISOString(),
+                browser: navigator.userAgent,
+                tests: []
+            };
+
+            document.querySelectorAll('.test-case').forEach(testCase => {
+                const name = testCase.querySelector('h3').textContent;
+                const status = testCase.querySelector('.status').textContent;
+                const details = testCase.querySelector('.test-details')?.textContent || '';
+                
+                results.tests.push({ name, status, details });
+            });
+
+            const blob = new Blob([JSON.stringify(results, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `auraflow-test-results-${Date.now()}.json`;
+            a.click();
+        };
+    </script>
+</body>
+</html>
