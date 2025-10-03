@@ -61,25 +61,81 @@ router.get('/google/callback', async (req, res) => {
     // Exchange code for tokens
     const tokens = await googleCalendar.exchangeCodeForTokens(code);
     
-    // Generate userId (in production, this would come from session/JWT)
-    // For MVP, we'll use a simple identifier
-    const userId = req.session?.userId || 'default_user';
+    // Generate or get userId from session
+    if (!req.session.userId) {
+      req.session.userId = `user_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    }
+    const userId = req.session.userId;
+    
+    // Mark session as authenticated
+    req.session.authenticated = true;
+    req.session.authTime = Date.now();
     
     // Store tokens securely
     tokenManager.storeTokens(userId, tokens);
     
-    // Success response
+    // Return tokens to the webapp
+    // For webapp, redirect back with success
+    const webappUrl = process.env.WEBAPP_URL || 'http://localhost:5000';
+    
     res.send(`
       <html>
+        <head>
+          <title>Authentication Successful</title>
+          <style>
+            body {
+              font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              height: 100vh;
+              margin: 0;
+              background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+              color: white;
+            }
+            .container {
+              text-align: center;
+              padding: 40px;
+              background: rgba(255, 255, 255, 0.1);
+              border-radius: 20px;
+              backdrop-filter: blur(10px);
+            }
+            .spinner {
+              width: 50px;
+              height: 50px;
+              border: 4px solid rgba(255, 255, 255, 0.3);
+              border-top: 4px solid white;
+              border-radius: 50%;
+              animation: spin 1s linear infinite;
+              margin: 20px auto;
+            }
+            @keyframes spin {
+              0% { transform: rotate(0deg); }
+              100% { transform: rotate(360deg); }
+            }
+          </style>
+        </head>
         <body>
-          <h1>Authentication Successful!</h1>
-          <p>Your Google Calendar has been connected successfully.</p>
-          <p>You can now close this window and return to the application.</p>
+          <div class="container">
+            <h1>✅ Authentication Successful!</h1>
+            <p>Your Google Calendar has been connected.</p>
+            <div class="spinner"></div>
+            <p>Redirecting you back to AuraFlow...</p>
+          </div>
           <script>
             // Notify parent window if opened in popup
             if (window.opener) {
-              window.opener.postMessage({ type: 'AUTH_SUCCESS' }, '*');
-              window.close();
+              window.opener.postMessage({ 
+                type: 'AUTH_SUCCESS',
+                timestamp: Date.now()
+              }, '*');
+              setTimeout(() => window.close(), 1000);
+            } else {
+              // Redirect back to webapp with success flag
+              // Session cookie is automatically included
+              setTimeout(() => {
+                window.location.href = '${webappUrl}?auth_success=true';
+              }, 2000);
             }
           </script>
         </body>
@@ -104,13 +160,21 @@ router.get('/google/callback', async (req, res) => {
  * Checks authentication status for current user
  */
 router.get('/status', (req, res) => {
-  const userId = req.session?.userId || 'default_user';
+  // Check if session exists and is authenticated
+  if (!req.session || !req.session.authenticated || !req.session.userId) {
+    return res.json({
+      authenticated: false,
+      message: 'No authentication found'
+    });
+  }
+  
+  const userId = req.session.userId;
   const tokens = tokenManager.getTokens(userId);
   
   if (!tokens) {
     return res.json({
       authenticated: false,
-      message: 'No authentication found'
+      message: 'No tokens found'
     });
   }
   
@@ -118,6 +182,7 @@ router.get('/status', (req, res) => {
   
   res.json({
     authenticated: true,
+    userId: userId,
     tokenExpired: isExpired,
     message: isExpired ? 'Token expired, will refresh on next API call' : 'Authenticated'
   });
@@ -125,15 +190,32 @@ router.get('/status', (req, res) => {
 
 /**
  * POST /api/auth/logout
- * Clears user tokens
+ * Clears user tokens and destroys session
  */
 router.post('/logout', (req, res) => {
-  const userId = req.session?.userId || 'default_user';
-  tokenManager.clearTokens(userId);
+  const userId = req.session?.userId;
   
-  res.json({
-    success: true,
-    message: 'Logged out successfully'
+  if (userId) {
+    tokenManager.clearTokens(userId);
+  }
+  
+  // Destroy session
+  req.session.destroy((err) => {
+    if (err) {
+      console.error('Session destruction error:', err);
+      return res.status(500).json({
+        success: false,
+        message: 'Failed to logout'
+      });
+    }
+    
+    // Clear cookie
+    res.clearCookie('connect.sid');
+    
+    res.json({
+      success: true,
+      message: 'Logged out successfully'
+    });
   });
 });
 
