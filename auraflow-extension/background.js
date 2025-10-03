@@ -368,9 +368,10 @@ const SlackStorageUtils = {
  */
 const SlackAuthUtils = {
     // Slack OAuth configuration
-    // TODO: Replace with actual Slack app credentials
-    CLIENT_ID: '9633226529556.9627606738182',
-    CLIENT_SECRET: '31003bc8619fe3394a0b77bda969618e',
+    // Load from config.js (not committed to version control)
+    // See config.example.js for setup instructions
+    CLIENT_ID: null,  // Will be loaded from config
+    CLIENT_SECRET: null,  // Will be loaded from config
 
     // OAuth scopes required for status management
     // Using Slack's granular bot scopes format
@@ -378,6 +379,36 @@ const SlackAuthUtils = {
         'users:write',          // Set user status and presence
         'users:read'            // Read user information
     ],
+
+    /**
+     * Load configuration from config.js
+     * This should be called on extension startup
+     */
+    async loadConfig() {
+        try {
+            // Try to load config.js dynamically
+            const response = await fetch(chrome.runtime.getURL('config.js'));
+            const configText = await response.text();
+
+            // Execute config script in isolated context
+            const configScript = new Function(configText + '; return CONFIG;');
+            const config = configScript();
+
+            if (config && config.slack) {
+                this.CLIENT_ID = config.slack.CLIENT_ID;
+                this.CLIENT_SECRET = config.slack.CLIENT_SECRET;
+                console.log('Slack configuration loaded successfully');
+                return true;
+            } else {
+                console.error('Invalid config.js structure');
+                return false;
+            }
+        } catch (error) {
+            console.error('Failed to load config.js:', error);
+            console.error('Please copy config.example.js to config.js and add your credentials');
+            return false;
+        }
+    },
 
     /**
      * Get the OAuth redirect URI for this extension
@@ -447,15 +478,20 @@ const SlackAuthUtils = {
         try {
             console.log('Starting Slack OAuth authentication flow');
 
+            // Load config if not already loaded
+            if (!this.CLIENT_ID || !this.CLIENT_SECRET) {
+                await this.loadConfig();
+            }
+
             // Check if client credentials are configured
-            if (this.CLIENT_ID === 'YOUR_SLACK_CLIENT_ID' || !this.CLIENT_ID) {
-                const error = new Error('Slack OAuth client ID not configured. Please set up Slack app credentials.');
+            if (!this.CLIENT_ID || this.CLIENT_ID === 'YOUR_SLACK_CLIENT_ID') {
+                const error = new Error('Slack OAuth client ID not configured. Please copy config.example.js to config.js and add your credentials.');
                 ErrorUtils.logError('slack_auth', error, { step: 'configuration_check' });
                 throw error;
             }
 
-            if (this.CLIENT_SECRET === 'YOUR_SLACK_CLIENT_SECRET' || !this.CLIENT_SECRET) {
-                const error = new Error('Slack OAuth client secret not configured. Please set up Slack app credentials.');
+            if (!this.CLIENT_SECRET || this.CLIENT_SECRET === 'YOUR_SLACK_CLIENT_SECRET') {
+                const error = new Error('Slack OAuth client secret not configured. Please copy config.example.js to config.js and add your credentials.');
                 ErrorUtils.logError('slack_auth', error, { step: 'configuration_check' });
                 throw error;
             }

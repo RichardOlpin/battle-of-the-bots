@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -12,16 +13,25 @@
             padding: 20px;
             background: #f5f5f5;
         }
+
         .section {
             background: white;
             padding: 20px;
             margin: 20px 0;
             border-radius: 8px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
         }
-        h1 { color: #6366f1; }
-        h2 { color: #333; margin-top: 0; }
-        .status { 
+
+        h1 {
+            color: #6366f1;
+        }
+
+        h2 {
+            color: #333;
+            margin-top: 0;
+        }
+
+        .status {
             display: inline-block;
             padding: 4px 12px;
             border-radius: 12px;
@@ -29,9 +39,22 @@
             font-weight: 600;
             margin-left: 10px;
         }
-        .status-good { background: #10b981; color: white; }
-        .status-bad { background: #ef4444; color: white; }
-        .status-warning { background: #f59e0b; color: white; }
+
+        .status-good {
+            background: #10b981;
+            color: white;
+        }
+
+        .status-bad {
+            background: #ef4444;
+            color: white;
+        }
+
+        .status-warning {
+            background: #f59e0b;
+            color: white;
+        }
+
         pre {
             background: #f8f9fa;
             padding: 15px;
@@ -39,6 +62,7 @@
             overflow-x: auto;
             font-size: 12px;
         }
+
         button {
             background: #6366f1;
             color: white;
@@ -48,45 +72,55 @@
             cursor: pointer;
             margin: 5px;
         }
-        button:hover { background: #4f46e5; }
-        .error { color: #ef4444; }
-        .success { color: #10b981; }
+
+        button:hover {
+            background: #4f46e5;
+        }
+
+        .error {
+            color: #ef4444;
+        }
+
+        .success {
+            color: #10b981;
+        }
     </style>
 </head>
+
 <body>
     <h1>🔍 AuraFlow Diagnostic Tool</h1>
-    
+
     <div class="section">
         <h2>Environment Check</h2>
         <div id="env-check">Running checks...</div>
     </div>
-    
+
     <div class="section">
         <h2>Service Worker Status</h2>
         <div id="sw-status">Checking...</div>
         <button onclick="checkServiceWorker()">Refresh Status</button>
         <button onclick="unregisterServiceWorker()">Unregister SW</button>
     </div>
-    
+
     <div class="section">
         <h2>Cache Status</h2>
         <div id="cache-status">Checking...</div>
         <button onclick="checkCache()">Refresh Cache</button>
         <button onclick="clearCache()">Clear All Cache</button>
     </div>
-    
+
     <div class="section">
         <h2>File Access Test</h2>
         <div id="file-test">Testing...</div>
         <button onclick="testFiles()">Test Files</button>
     </div>
-    
+
     <div class="section">
         <h2>Backend Connection</h2>
         <div id="backend-test">Testing...</div>
         <button onclick="testBackend()">Test Backend</button>
     </div>
-    
+
     <div class="section">
         <h2>Console Errors</h2>
         <div id="console-errors">
@@ -94,67 +128,86 @@
             <button onclick="window.location.reload()">Reload Page</button>
         </div>
     </div>
-    
+
     <script>
         // Environment Check
         function checkEnvironment() {
             const results = [];
-            
+
             // Check protocol
             const protocol = window.location.protocol;
             const isSecure = protocol === 'https:' || window.location.hostname === 'localhost';
             results.push(`Protocol: ${protocol} ${isSecure ? '✅' : '❌ (Service Workers require HTTPS or localhost)'}`);
-            
+
             // Check hostname
             results.push(`Hostname: ${window.location.hostname}`);
             results.push(`Port: ${window.location.port || '(default)'}`);
             results.push(`Full URL: ${window.location.href}`);
-            
+
             // Check Service Worker support
             const swSupported = 'serviceWorker' in navigator;
             results.push(`Service Worker Support: ${swSupported ? '✅' : '❌'}`);
-            
+
             // Check Storage support
             const storageSupported = 'localStorage' in window;
             results.push(`LocalStorage Support: ${storageSupported ? '✅' : '❌'}`);
-            
+
             // Check if in iframe
             const inIframe = window.self !== window.top;
             results.push(`In iframe: ${inIframe ? '⚠️ Yes (may cause issues)' : '✅ No'}`);
-            
-            document.getElementById('env-check').innerHTML = '<pre>' + results.join('\n') + '</pre>';
+
+            const pre = document.createElement('pre');
+            pre.textContent = results.join('\n');
+            const envCheckDiv = document.getElementById('env-check');
+            envCheckDiv.innerHTML = '';
+            envCheckDiv.appendChild(pre);
         }
-        
+
         // Service Worker Check
         async function checkServiceWorker() {
             const statusDiv = document.getElementById('sw-status');
-            
+
             if (!('serviceWorker' in navigator)) {
                 statusDiv.innerHTML = '<span class="error">❌ Service Workers not supported</span>';
                 return;
             }
-            
+
             try {
                 const registrations = await navigator.serviceWorker.getRegistrations();
-                
+
                 if (registrations.length === 0) {
                     statusDiv.innerHTML = '<span class="status-warning">No service workers registered</span>';
                 } else {
-                    let html = '<span class="status-good">Service Workers Found</span><br><br>';
+                    statusDiv.innerHTML = '<span class="status-good">Service Workers Found</span><br><br>';
                     registrations.forEach((reg, i) => {
-                        html += `<strong>Registration ${i + 1}:</strong><br>`;
-                        html += `Scope: ${reg.scope}<br>`;
-                        html += `Active: ${reg.active ? '✅' : '❌'}<br>`;
-                        html += `Installing: ${reg.installing ? '⏳' : '❌'}<br>`;
-                        html += `Waiting: ${reg.waiting ? '⏳' : '❌'}<br><br>`;
+                        const regDiv = document.createElement('div');
+                        const strong = document.createElement('strong');
+                        strong.textContent = `Registration ${i + 1}:`;
+                        regDiv.appendChild(strong);
+                        regDiv.appendChild(document.createElement('br'));
+
+                        const scopeText = document.createTextNode(`Scope: ${reg.scope}`);
+                        regDiv.appendChild(scopeText);
+                        regDiv.appendChild(document.createElement('br'));
+
+                        regDiv.appendChild(document.createTextNode(`Active: ${reg.active ? '✅' : '❌'}`));
+                        regDiv.appendChild(document.createElement('br'));
+                        regDiv.appendChild(document.createTextNode(`Installing: ${reg.installing ? '⏳' : '❌'}`));
+                        regDiv.appendChild(document.createElement('br'));
+                        regDiv.appendChild(document.createTextNode(`Waiting: ${reg.waiting ? '⏳' : '❌'}`));
+                        regDiv.appendChild(document.createElement('br'));
+                        regDiv.appendChild(document.createElement('br'));
+
+                        statusDiv.appendChild(regDiv);
                     });
-                    statusDiv.innerHTML = html;
                 }
             } catch (error) {
-                statusDiv.innerHTML = `<span class="error">Error: ${error.message}</span>`;
+                statusDiv.innerHTML = '<span class="error">Error: </span>';
+                const errorText = document.createTextNode(error.message);
+                statusDiv.appendChild(errorText);
             }
         }
-        
+
         // Unregister Service Worker
         async function unregisterServiceWorker() {
             try {
@@ -168,37 +221,43 @@
                 alert('Error: ' + error.message);
             }
         }
-        
+
         // Cache Check
         async function checkCache() {
             const statusDiv = document.getElementById('cache-status');
-            
+
             if (!('caches' in window)) {
                 statusDiv.innerHTML = '<span class="error">❌ Cache API not supported</span>';
                 return;
             }
-            
+
             try {
                 const cacheNames = await caches.keys();
-                
+
                 if (cacheNames.length === 0) {
                     statusDiv.innerHTML = '<span class="status-warning">No caches found</span>';
                 } else {
-                    let html = '<span class="status-good">Caches Found</span><br><br>';
-                    
+                    statusDiv.innerHTML = '<span class="status-good">Caches Found</span><br><br>';
+
                     for (const name of cacheNames) {
                         const cache = await caches.open(name);
                         const keys = await cache.keys();
-                        html += `<strong>${name}</strong>: ${keys.length} items<br>`;
+                        const cacheDiv = document.createElement('div');
+                        const strong = document.createElement('strong');
+                        strong.textContent = name;
+                        cacheDiv.appendChild(strong);
+                        cacheDiv.appendChild(document.createTextNode(`: ${keys.length} items`));
+                        cacheDiv.appendChild(document.createElement('br'));
+                        statusDiv.appendChild(cacheDiv);
                     }
-                    
-                    statusDiv.innerHTML = html;
                 }
             } catch (error) {
-                statusDiv.innerHTML = `<span class="error">Error: ${error.message}</span>`;
+                statusDiv.innerHTML = '<span class="error">Error: </span>';
+                const errorText = document.createTextNode(error.message);
+                statusDiv.appendChild(errorText);
             }
         }
-        
+
         // Clear Cache
         async function clearCache() {
             try {
@@ -212,7 +271,7 @@
                 alert('Error: ' + error.message);
             }
         }
-        
+
         // Test Files
         async function testFiles() {
             const statusDiv = document.getElementById('file-test');
@@ -225,58 +284,74 @@
                 '/style.css',
                 '/manifest.json'
             ];
-            
-            let html = '<strong>Testing file access:</strong><br><br>';
-            
+
+            statusDiv.innerHTML = '<strong>Testing file access:</strong><br><br>';
+
             for (const file of files) {
+                const fileDiv = document.createElement('div');
                 try {
                     const response = await fetch(file);
                     const contentType = response.headers.get('content-type');
                     const status = response.status;
-                    
+
                     if (status === 200) {
-                        html += `✅ ${file} (${contentType})<br>`;
+                        fileDiv.textContent = `✅ ${file} (${contentType})`;
                     } else {
-                        html += `❌ ${file} - Status: ${status}<br>`;
+                        fileDiv.textContent = `❌ ${file} - Status: ${status}`;
                     }
                 } catch (error) {
-                    html += `❌ ${file} - Error: ${error.message}<br>`;
+                    fileDiv.textContent = `❌ ${file} - Error: ${error.message}`;
                 }
+                fileDiv.appendChild(document.createElement('br'));
+                statusDiv.appendChild(fileDiv);
             }
-            
-            statusDiv.innerHTML = html;
         }
-        
+
         // Test Backend
         async function testBackend() {
             const statusDiv = document.getElementById('backend-test');
             const backendURL = 'http://localhost:3000/api';
-            
-            let html = '<strong>Testing backend connection:</strong><br><br>';
-            
+
+            statusDiv.innerHTML = '<strong>Testing backend connection:</strong><br><br>';
+
             // Test health endpoint
             try {
                 const response = await fetch(`${backendURL}/health`);
                 const data = await response.json();
-                
+
                 if (response.ok) {
-                    html += `✅ Backend is running<br>`;
-                    html += `Service: ${data.service}<br>`;
-                    html += `Version: ${data.version}<br>`;
-                    html += `Status: ${data.status}<br>`;
+                    const resultDiv = document.createElement('div');
+                    resultDiv.appendChild(document.createTextNode('✅ Backend is running'));
+                    resultDiv.appendChild(document.createElement('br'));
+                    resultDiv.appendChild(document.createTextNode(`Service: ${data.service}`));
+                    resultDiv.appendChild(document.createElement('br'));
+                    resultDiv.appendChild(document.createTextNode(`Version: ${data.version}`));
+                    resultDiv.appendChild(document.createElement('br'));
+                    resultDiv.appendChild(document.createTextNode(`Status: ${data.status}`));
+                    resultDiv.appendChild(document.createElement('br'));
+                    statusDiv.appendChild(resultDiv);
                 } else {
-                    html += `⚠️ Backend responded with status: ${response.status}<br>`;
+                    const resultDiv = document.createElement('div');
+                    resultDiv.textContent = `⚠️ Backend responded with status: ${response.status}`;
+                    resultDiv.appendChild(document.createElement('br'));
+                    statusDiv.appendChild(resultDiv);
                 }
             } catch (error) {
-                html += `❌ Cannot connect to backend<br>`;
-                html += `Error: ${error.message}<br>`;
-                html += `<br>Make sure the backend is running:<br>`;
-                html += `<code>cd battle-of-the-bots && npm start</code>`;
+                const errorDiv = document.createElement('div');
+                errorDiv.appendChild(document.createTextNode('❌ Cannot connect to backend'));
+                errorDiv.appendChild(document.createElement('br'));
+                errorDiv.appendChild(document.createTextNode(`Error: ${error.message}`));
+                errorDiv.appendChild(document.createElement('br'));
+                errorDiv.appendChild(document.createElement('br'));
+                errorDiv.appendChild(document.createTextNode('Make sure the backend is running:'));
+                errorDiv.appendChild(document.createElement('br'));
+                const code = document.createElement('code');
+                code.textContent = 'cd battle-of-the-bots && npm start';
+                errorDiv.appendChild(code);
+                statusDiv.appendChild(errorDiv);
             }
-            
-            statusDiv.innerHTML = html;
         }
-        
+
         // Run checks on load
         window.addEventListener('load', () => {
             checkEnvironment();
@@ -285,13 +360,16 @@
             testFiles();
             testBackend();
         });
-        
+
         // Capture console errors
         window.addEventListener('error', (event) => {
             const errorDiv = document.getElementById('console-errors');
-            const errorMsg = `<div class="error">❌ ${event.message} at ${event.filename}:${event.lineno}</div>`;
-            errorDiv.innerHTML += errorMsg;
+            const errorMsgDiv = document.createElement('div');
+            errorMsgDiv.className = 'error';
+            errorMsgDiv.textContent = `❌ ${event.message} at ${event.filename}:${event.lineno}`;
+            errorDiv.appendChild(errorMsgDiv);
         });
     </script>
 </body>
+
 </html>

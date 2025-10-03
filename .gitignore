@@ -1,6 +1,10 @@
 # Extension private key - keep secure
 auraflow-extension/private-key.pem
 
+# Configuration files with secrets
+auraflow-extension/config.js
+config.js
+
 # Environment variables
 .env
 .env.local
