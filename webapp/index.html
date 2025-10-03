@@ -4,11 +4,8 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="description" content="AuraFlow - AI-powered focus timer with calendar integration">
-    <meta name="theme-color" content="#6366f1">
+    <meta name="theme-color" content="#4A55E1">
     
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
     <link rel="manifest" href="manifest.json">
     
@@ -36,11 +33,15 @@
                 <div class="nav-section">
                     <h3 class="nav-title">Dashboard</h3>
                     <a href="#" class="nav-item active" data-screen="events">
-                        <i class="nav-icon">📊</i>
+                        <svg class="nav-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
+                        </svg>
                         <span>Overview</span>
                     </a>
                     <a href="#" class="nav-item" data-screen="session">
-                        <i class="nav-icon">🎯</i>
+                        <svg class="nav-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                        </svg>
                         <span>Focus Session</span>
                     </a>
                 </div>
@@ -48,11 +49,15 @@
                 <div class="nav-section">
                     <h3 class="nav-title">AI Features</h3>
                     <button class="nav-item" id="nav-find-focus">
-                        <i class="nav-icon">🔍</i>
+                        <svg class="nav-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                        </svg>
                         <span>Find Focus Time</span>
                     </button>
                     <button class="nav-item" id="nav-generate-ritual">
-                        <i class="nav-icon">✨</i>
+                        <svg class="nav-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z"></path>
+                        </svg>
                         <span>Generate Ritual</span>
                     </button>
                 </div>
@@ -60,11 +65,15 @@
                 <div class="nav-section">
                     <h3 class="nav-title">Settings</h3>
                     <button class="nav-item" id="nav-themes">
-                        <i class="nav-icon">🎨</i>
+                        <svg class="nav-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zM21 5a2 2 0 00-2-2h-4a2 2 0 00-2 2v12a4 4 0 004 4h4a2 2 0 002-2V5z"></path>
+                        </svg>
                         <span>Themes</span>
                     </button>
                     <button class="nav-item" id="nav-blocking">
-                        <i class="nav-icon">🛡️</i>
+                        <svg class="nav-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"></path>
+                        </svg>
                         <span>Website Blocking</span>
                     </button>
                 </div>
@@ -72,7 +81,9 @@
             
             <div class="sidebar-footer">
                 <button class="nav-item logout-btn" id="sidebar-logout-btn">
-                    <i class="nav-icon">🚪</i>
+                    <svg class="nav-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path>
+                    </svg>
                     <span>Logout</span>
                 </button>
             </div>
@@ -92,8 +103,10 @@
                     <div class="auth-card">
                         <h2>Get Started</h2>
                         <p>Connect your Google Calendar to unlock personalized focus recommendations</p>
-                        <button id="connect-btn" class="btn btn-primary btn-large">
-                            <i class="btn-icon">🔗</i>
+                        <button id="connect-btn" class="btn-primary">
+                            <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"></path>
+                            </svg>
                             Connect Google Calendar
                         </button>
                     </div>
@@ -110,8 +123,10 @@
                             <p class="page-subtitle" id="date-header">Today's Overview</p>
                         </div>
                         <div class="header-actions">
-                            <button id="refresh-btn" class="btn btn-secondary btn-icon-only" title="Refresh">
-                                <i>↻</i>
+                            <button id="refresh-btn" class="btn-secondary btn-icon-only" title="Refresh">
+                                <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+                                </svg>
                             </button>
                         </div>
                     </div>
@@ -120,14 +135,16 @@
                 <!-- Dashboard Grid -->
                 <div class="dashboard-grid">
                     <!-- Quick Focus Card -->
-                    <div class="card card-primary quick-focus-card">
+                    <div class="card quick-focus-card">
                         <div class="card-header">
-                            <h3 class="card-title">Quick Focus</h3>
-                            <div class="card-icon">🎯</div>
+                            <h2 class="card-title">Quick Focus</h2>
+                            <svg class="card-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                            </svg>
                         </div>
                         <div class="card-content">
                             <p class="card-description">Start a 25-minute focus session right now</p>
-                            <button id="quick-focus-btn" class="btn btn-white btn-large">
+                            <button id="quick-focus-btn" class="quick-focus-btn">
                                 Start Session
                             </button>
                         </div>
@@ -136,8 +153,10 @@
                     <!-- Calendar Events Card -->
                     <div class="card events-card">
                         <div class="card-header">
-                            <h3 class="card-title">Today's Schedule</h3>
-                            <div class="card-icon">📅</div>
+                            <h2 class="card-title">Today's Schedule</h2>
+                            <svg class="card-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+                            </svg>
                         </div>
                         <div class="card-content">
                             <div id="events-container" class="events-list">
@@ -153,17 +172,23 @@
                     <!-- AI Insights Card -->
                     <div class="card ai-card">
                         <div class="card-header">
-                            <h3 class="card-title">AI Insights</h3>
-                            <div class="card-icon">🤖</div>
+                            <h2 class="card-title">AI Insights</h2>
+                            <svg class="card-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"></path>
+                            </svg>
                         </div>
                         <div class="card-content">
                             <div class="ai-actions">
-                                <button id="find-focus-btn" class="btn btn-outline">
-                                    <i class="btn-icon">🔍</i>
+                                <button id="find-focus-btn" class="btn-secondary">
+                                    <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                                    </svg>
                                     Find Focus Time
                                 </button>
-                                <button id="generate-ritual-btn" class="btn btn-outline">
-                                    <i class="btn-icon">✨</i>
+                                <button id="generate-ritual-btn" class="btn-secondary">
+                                    <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z"></path>
+                                    </svg>
                                     Generate Ritual
                                 </button>
                             </div>
@@ -176,8 +201,10 @@
                     <!-- Theme Selector Card -->
                     <div class="card theme-card">
                         <div class="card-header">
-                            <h3 class="card-title">Theme</h3>
-                            <div class="card-icon">🎨</div>
+                            <h2 class="card-title">Theme</h2>
+                            <svg class="card-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zM21 5a2 2 0 00-2-2h-4a2 2 0 00-2 2v12a4 4 0 004 4h4a2 2 0 002-2V5z"></path>
+                            </svg>
                         </div>
                         <div class="card-content">
                             <div class="theme-grid">
@@ -208,8 +235,10 @@
                     <!-- Website Blocking Card -->
                     <div class="card blocking-card">
                         <div class="card-header">
-                            <h3 class="card-title">Distraction Shield</h3>
-                            <div class="card-icon">🛡️</div>
+                            <h2 class="card-title">Distraction Shield</h2>
+                            <svg class="card-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"></path>
+                            </svg>
                         </div>
                         <div class="card-content">
                             <p class="card-description">Block distracting websites during focus sessions</p>
@@ -222,8 +251,10 @@
                                     rows="4"
                                 ></textarea>
                             </div>
-                            <button id="save-blocked-sites-button" class="btn btn-primary">
-                                <i class="btn-icon">💾</i>
+                            <button id="save-blocked-sites-button" class="btn-primary">
+                                <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4"></path>
+                                </svg>
                                 Save Settings
                             </button>
                         </div>
@@ -232,8 +263,10 @@
                     <!-- Stats Card -->
                     <div class="card stats-card">
                         <div class="card-header">
-                            <h3 class="card-title">Today's Progress</h3>
-                            <div class="card-icon">📈</div>
+                            <h2 class="card-title">Today's Progress</h2>
+                            <svg class="card-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
+                            </svg>
                         </div>
                         <div class="card-content">
                             <div class="stats-grid">
@@ -260,8 +293,10 @@
                 <div class="session-container">
                     <div class="session-header">
                         <h1 class="session-title">Focus Session</h1>
-                        <button id="session-close" class="btn btn-ghost btn-icon-only">
-                            <i>✕</i>
+                        <button id="session-close" class="btn-secondary btn-icon-only">
+                            <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                            </svg>
                         </button>
                     </div>
 
@@ -290,12 +325,17 @@
                         </div>
 
                         <div class="session-actions">
-                            <button id="pause-btn" class="btn btn-secondary">
-                                <i class="btn-icon">⏸️</i>
+                            <button id="pause-btn" class="btn-secondary">
+                                <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 9v6m4-6v6m7-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                </svg>
                                 Pause
                             </button>
-                            <button id="stop-btn" class="btn btn-danger">
-                                <i class="btn-icon">⏹️</i>
+                            <button id="stop-btn" class="btn-primary" style="background-color: #EF4444;">
+                                <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 10h6v4H9z"></path>
+                                </svg>
                                 Stop
                             </button>
                         </div>
@@ -317,20 +357,15 @@
                     <div class="error-icon">⚠️</div>
                     <h2 class="error-title">Something went wrong</h2>
                     <p id="error-message" class="error-message">Please try again</p>
-                    <button id="retry-btn" class="btn btn-primary">
-                        <i class="btn-icon">🔄</i>
+                    <button id="retry-btn" class="btn-primary">
+                        <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+                        </svg>
                         Try Again
                     </button>
                 </div>
             </div>
         </main>
-    </div>
-
-    <!-- Background Elements -->
-    <div class="background-elements">
-        <div class="bg-shape bg-shape-1"></div>
-        <div class="bg-shape bg-shape-2"></div>
-        <div class="bg-shape bg-shape-3"></div>
     </div>
 
     <script type="module" src="app.js"></script>
